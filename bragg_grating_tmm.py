@@ -39,20 +39,21 @@ def bragg_grating_tmm(f_array, Lm, Le, nmm, nee, am, ae, N, Lc, pishift, Lpi, de
     
     """
     Propagation constants Beta = 2 * pi / wavelength * n
+        how many radians the wave's phase changed per meter it travels
     phi_+ = Beta_m * Lm + Beta_e * Le
     phi_- = Beta_m * Lm - Beta_e * Le
     """
     beta_m = 2 * PI / wavelength * nm
     beta_e = 2 * PI / wavelength * ne
     
-    LAMBDA = Lm + Le
-    L_laser = Lc - N * LAMBDA
+    LAMBDA = Lm + Le #one period
+    L_laser = Lc - N * LAMBDA #total substract len of grating 
     
     # Reflection and transmission coefficients at the interface
     r = (nee - nmm) / (nee + nmm)
     t = np.sqrt(1 - r**2)
     
-    # Pre-calculate phase terms for the standard Bragg period
+    # phase terms for the standard Bragg period
     phi_plus = beta_m * Lm + beta_e * Le
     phi_minus = beta_m * Lm - beta_e * Le
     
@@ -63,12 +64,12 @@ def bragg_grating_tmm(f_array, Lm, Le, nmm, nee, am, ae, N, Lc, pishift, Lpi, de
         # 1. Calculate precise phase lengths based on pishift AND delta
         if pishift:
             
-            phi_pluspi = beta_e[i] * Lpi
+            phi_pluspi = beta_e[i] * Lpi # no metal part
             phi_minuspi = beta_e[i] * Lpi
             
             
-            phase_left = beta_m[i] * ((L_laser - Lpi) / 2.0 - delta)
-            phase_right = beta_m[i] * ((L_laser - Lpi) / 2.0 + delta)
+            phi_left = beta_m[i] * ((L_laser - Lpi) / 2.0 - delta)
+            phi_right = beta_m[i] * ((L_laser - Lpi) / 2.0 + delta)
             
             # Build the central pi-shift matrix
             T11pi = (1/t**2) * (np.exp(1j*phi_pluspi) - (r**2) * np.exp(-1j*phi_minuspi))
@@ -78,29 +79,35 @@ def bragg_grating_tmm(f_array, Lm, Le, nmm, nee, am, ae, N, Lc, pishift, Lpi, de
             Tpi = np.array([[T11pi, T12pi], [T21pi, T22pi]])
             
         else:
-            phase_left = beta_m[i] * (L_laser / 2.0 - delta)
-            phase_right = beta_m[i] * (L_laser / 2.0 + delta)
+            phi_left = beta_m[i] * (L_laser / 2.0 - delta)
+            phi_right = beta_m[i] * (L_laser / 2.0 + delta)
 
         # 2. Build the standard matrices for this frequency
         T11 = (1/t**2) * (np.exp(1j*phi_plus[i]) - (r**2) * np.exp(-1j*phi_minus[i]))
         T12 = (r/t**2) * (np.exp(-1j*phi_plus[i]) - np.exp(1j*phi_minus[i]))
         T21 = (r/t**2) * (np.exp(1j*phi_plus[i]) - np.exp(-1j*phi_minus[i]))
         T22 = (1/t**2) * (np.exp(-1j*phi_plus[i]) - (r**2) * np.exp(1j*phi_minus[i]))
-        Tbragg = np.array([[T11, T12], [T21, T22]])
+        T_bragg = np.array([[T11, T12], [T21, T22]])
         
-        Tlaserleft = np.array([[np.exp(1j*phase_left), 0], [0, np.exp(-1j*phase_left)]])
-        Tlaserright = np.array([[np.exp(1j*phase_right), 0], [0, np.exp(-1j*phase_right)]])
+        T_left = np.array([[np.exp(1j*phi_left), 0], [0, np.exp(-1j*phi_left)]])
+        T_right = np.array([[np.exp(1j*phi_right), 0], [0, np.exp(-1j*phi_right)]])
 
-        # 3. Assemble the total Transfer Matrix (using @ for matrix multiplication)
+        # 3. Assemble the total Transfer Matrix (using @ for matrix multiplication for Python 3.5+ only)
         if pishift:
             half_N = int(N // 2)
-            # The @ operator in Python 3.5+ does exact matrix multiplication
-            T = Tlaserleft @ np.linalg.matrix_power(Tbragg, half_N) @ Tpi @ np.linalg.matrix_power(Tbragg, half_N) @ Tlaserright
+            T = T_left @ np.linalg.matrix_power(T_bragg, half_N) @ Tpi @ np.linalg.matrix_power(T_bragg, half_N) @ T_right
         else:
-            T = Tlaserleft @ np.linalg.matrix_power(Tbragg, int(N)) @ Tlaserright
+            T = T_left @ np.linalg.matrix_power(T_bragg, int(N)) @ T_right
             
-        # 4. Extract Scattering matrix (S-matrix) parameters
-        # S21 is transmission, S11 is reflection. 
+        """
+        Extract Scattering matrix (S-matrix) parameters
+        S12/S21 transmission
+            S21 = 1 / T11
+            S12 = det(T) / T11
+            for reciprocal optical structures, det(T) = 1
+        S11 reflection
+            S11 = T21 / T11
+        """
         S11 = T[1, 0] / T[0, 0]
         S12 = np.linalg.det(T) / T[0, 0] 
         
