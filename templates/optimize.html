@@ -1,0 +1,229 @@
+{% extends "base.html" %}
+
+{% block content %}
+<style>
+    .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; }
+    .section-title { grid-column: 1 / -1; margin-top: 20px; margin-bottom: 5px; border-bottom: 2px solid #ecf0f1; padding-bottom: 5px; color: #2980b9; }
+    .warning-box { background-color: #e8f4f8; color: #2980b9; padding: 15px; border-radius: 6px; border-left: 5px solid #3498db; margin-bottom: 20px; font-weight: bold; }
+    #error-box { display: none; background-color: #f8d7da; color: #721c24; padding: 15px; border-radius: 6px; border-left: 5px solid #f5c6cb; margin-bottom: 20px; font-weight: bold; }
+</style>
+
+<div class="card">
+    <h2>Parameter Optimization</h2>
+    <p class="subtitle">Find the optimal physical parameter to hit your target frequency.</p>
+    
+    <div class="warning-box">
+        Notice: Select exactly one parameter to sweep. The optimization engine will hold all other parameters constant.
+    </div>
+
+    <div id="error-box"></div>
+
+    <div class="form-grid">
+        <h3 class="section-title">Optimization Target</h3>
+        <div class="form-group"><label>Target Freq \(f_{target}\) [THz]:</label><input type="number" id="opt-freq" placeholder="e.g., 2.5" step="0.1"></div>
+        
+        <div class="form-group">
+            <label>Parameter to Sweep:</label>
+            <select id="sweep-param" onchange="updateSweepUI()">
+                <option value="Lm">Metal Length (\(L_m\))</option>
+                <option value="Le">Etch Length (\(L_e\))</option>
+                <option value="nmm">Metal Refractive Index (\(n_{mm}\))</option>
+                <option value="nee">Etch Refractive Index (\(n_{ee}\))</option>
+                <option value="am">Metal Absorption (\(\alpha_m\))</option>
+                <option value="ae">Etch Absorption (\(\alpha_e\))</option>
+                <option value="N">Bragg Periods (\(N\))</option>
+                <option value="Lc">Chip Length (\(L_c\))</option>
+                <option value="Lpi">Pi-Shift Length (\(L_{\pi}\))</option>
+            </select>
+        </div>
+
+        <h3 class="section-title" id="sweep-title">Sweep Range for \(L_m\)</h3>
+        <div class="form-group"><label>Start Value:</label><input type="number" id="sweep-start" placeholder="e.g., 8e-6"></div>
+        <div class="form-group"><label>Stop Value:</label><input type="number" id="sweep-stop" placeholder="e.g., 15e-6"></div>
+        <div class="form-group"><label>Number of Points:</label><input type="number" id="sweep-points" placeholder="e.g., 50 (Max 200)"></div>
+        <div></div>
+
+        <h3 class="section-title">Remaining Static Parameters</h3>
+        
+        <div class="form-group static-param" id="static-box-Lm"><label>Metal Length \(L_m\) [m]:</label><input type="number" id="opt-Lm" placeholder="e.g., 12.93e-6"></div>
+        <div class="form-group static-param" id="static-box-Le"><label>Etch Length \(L_e\) [m]:</label><input type="number" id="opt-Le" placeholder="e.g., 3.11e-6"></div>
+        <div class="form-group static-param" id="static-box-nmm"><label>Metal Ref. Index \(n_{mm}\):</label><input type="number" id="opt-nmm" placeholder="e.g., 3.67" step="0.01"></div>
+        <div class="form-group static-param" id="static-box-nee"><label>Etch Ref. Index \(n_{ee}\):</label><input type="number" id="opt-nee" placeholder="e.g., 3.07" step="0.01"></div>
+        <div class="form-group static-param" id="static-box-am"><label>Metal Absorp. \(\alpha_m\) [m\(^{-1}\)]:</label><input type="number" id="opt-am" placeholder="e.g., 750"></div>
+        <div class="form-group static-param" id="static-box-ae"><label>Etch Absorp. \(\alpha_e\) [m\(^{-1}\)]:</label><input type="number" id="opt-ae" placeholder="e.g., 3812"></div>
+        <div class="form-group static-param" id="static-box-N"><label>Bragg Periods \(N\):</label><input type="number" id="opt-N" placeholder="e.g., 14"></div>
+        <div class="form-group static-param" id="static-box-Lc"><label>Chip Length \(L_c\) [m]:</label><input type="number" id="opt-Lc" placeholder="e.g., 2e-3"></div>
+        <div class="form-group static-param" id="static-box-Lpi"><label>\(\pi\)-Shift Length \(L_{\pi}\) [m]:</label><input type="number" id="opt-Lpi" placeholder="e.g., 6.22e-6"></div>
+        
+        <div class="form-group" style="grid-column: 1 / -1;">
+            <label>Deviation \(\delta\) [m]:</label><input type="number" id="opt-delta" placeholder="e.g., 0.0">
+        </div>
+    </div>
+
+    <button onclick="runOptimization()" id="run-btn">Execute Optimization</button>
+</div>
+<div class="card" id="chart-card" style="display: none; margin-top: 30px; border-top-color: #27ae60;">
+    <h3 id="result-text" style="text-align: center; color: #27ae60;"></h3>
+    <canvas id="optChart"></canvas>
+</div>
+
+<script>
+    let currentChart = null;
+    function updateSweepUI() {
+        const selected = document.getElementById('sweep-param').value;
+        const allStatics = document.querySelectorAll('.static-param');
+        
+        allStatics.forEach(el => el.style.display = 'block');
+        
+        const toHide = document.getElementById('static-box-' + selected);
+        if (toHide) toHide.style.display = 'none';
+
+        const titleText = document.getElementById('sweep-param').options[document.getElementById('sweep-param').selectedIndex].text;
+        document.getElementById('sweep-title').innerHTML = `Sweep Range for ${titleText}`;
+        
+        if (window.MathJax) { MathJax.typesetPromise(); }
+    }
+
+    async function runOptimization() {
+        const errorBox = document.getElementById('error-box');
+        const runBtn = document.getElementById('run-btn');
+        const chartCard = document.getElementById('chart-card');
+        
+        errorBox.style.display = 'none'; 
+        chartCard.style.display = 'none';
+
+        const targetFreq = parseFloat(document.getElementById('opt-freq').value);
+        const sweepStart = parseFloat(document.getElementById('sweep-start').value);
+        const sweepStop = parseFloat(document.getElementById('sweep-stop').value);
+        const sweepPoints = parseInt(document.getElementById('sweep-points').value);
+        const delta = parseFloat(document.getElementById('opt-delta').value);
+        const selectedSweep = document.getElementById('sweep-param').value;
+
+        if (isNaN(targetFreq) || targetFreq <= 0) {
+            showError("Validation Error: Target frequency must be strictly positive."); return;
+        }
+        if (isNaN(sweepStart) || isNaN(sweepStop) || isNaN(sweepPoints)) {
+            showError("Validation Error: Sweep range limits and point count must be provided."); return;
+        }
+        if (sweepStart >= sweepStop) {
+            showError("Validation Error: Sweep start limit must be less than stop limit."); return;
+        }
+        if (sweepPoints <= 1 || sweepPoints > 200) {
+            showError("Validation Error: Sweep points must be bounded between 2 and 200."); return;
+        }
+        if (isNaN(delta)) { showError("Validation Error: Deviation parameter missing."); return; }
+
+        let staticValues = {};
+        const staticIds = ['Lm', 'Le', 'nmm', 'nee', 'am', 'ae', 'N', 'Lc', 'Lpi'];
+        
+        for (let i = 0; i < staticIds.length; i++) {
+            const paramId = staticIds[i];
+            if (paramId === selectedSweep) {
+                staticValues[paramId] = 0; // We will let the backend handle this one!
+                continue;
+            }
+
+            const val = parseFloat(document.getElementById('opt-' + paramId).value);
+            if (isNaN(val)) { showError(`Validation Error: Missing input for static parameter [${paramId}].`); return; }
+            if (paramId === 'N' && (!Number.isInteger(val) || val <= 0 || val % 2 !== 0)) { showError("Validation Error: N must be an even integer."); return; }
+            if (['Lm', 'Le', 'Lc', 'Lpi'].includes(paramId) && val <= 0) { showError(`Validation Error: Physical dimension [${paramId}] must be strictly positive.`); return; }
+            
+            staticValues[paramId] = val;
+        }
+        
+
+        runBtn.disabled = true;
+        runBtn.innerHTML = "Optimizing... This may take a moment!";
+        runBtn.style.backgroundColor = "#95a5a6";
+
+        // 4. Package the JSON Payload
+        const payload = {
+            f_target: targetFreq * 1e12, // Convert THz to Hz
+            sweep_param: selectedSweep,
+            sweep_start: sweepStart,
+            sweep_stop: sweepStop,
+            sweep_points: sweepPoints,
+            delta: delta,
+            static_params: staticValues
+        };
+
+        try {
+            // 5. Send to the Python Flask Server
+            const response = await fetch('/api/optimize', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload)
+            });
+
+            const data = await response.json();
+
+            if (response.ok) {
+                // 6. Success! Display the optimal value and draw the V-curve
+                document.getElementById('result-text').innerHTML = `Optimal Value Found: ${data.optimal_value.toExponential(4)}`;
+                
+                // Get the proper label name for the X-axis
+                const titleText = document.getElementById('sweep-param').options[document.getElementById('sweep-param').selectedIndex].text;
+                drawChart(data.sweep_array, data.error_array, titleText);
+            } else {
+                showError("Server Error: " + data.message);
+            }
+        } catch (error) {
+            showError("Connection Failed: Ensure the Flask server is running, darling.");
+        } finally {
+            // 7. Unlock the UI
+            runBtn.disabled = false;
+            runBtn.innerHTML = "Execute Optimization";
+            runBtn.style.backgroundColor = "#3498db";
+        }
+    }
+
+    function drawChart(x_data, y_data, x_label) {
+        const chartCard = document.getElementById('chart-card');
+        chartCard.style.display = 'block';
+
+        const ctx = document.getElementById('optChart').getContext('2d');
+        
+        if (currentChart) { currentChart.destroy(); }
+
+        currentChart = new Chart(ctx, {
+            type: 'line',
+            data: {
+                labels: x_data, 
+                datasets: [{
+                    label: 'Frequency Error (Distance from Target)',
+                    data: y_data, // The error array from your backend!
+                    borderColor: '#27ae60', // A lovely green for optimization!
+                    backgroundColor: 'rgba(39, 174, 96, 0.1)',
+                    borderWidth: 2,
+                    pointRadius: 3, // Show dots here so we can see the exact sweep points
+                    pointBackgroundColor: '#27ae60',
+                    tension: 0.2,
+                    fill: true
+                }]
+            },
+            options: {
+                responsive: true,
+                interaction: { intersect: false, mode: 'index' },
+                scales: {
+                    x: { title: { display: true, text: x_label, font: {size: 14, weight: 'bold'} } },
+                    y: { 
+                        title: { display: true, text: 'Frequency Error (Hz)', font: {size: 14, weight: 'bold'} }, 
+                        beginAtZero: true 
+                    }
+                }
+            }
+        });
+
+        chartCard.scrollIntoView({ behavior: 'smooth' });
+    }
+    
+    function showError(message) {
+        const errorBox = document.getElementById('error-box');
+        errorBox.innerHTML = message;
+        errorBox.style.display = 'block';
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+
+    window.onload = updateSweepUI;
+</script>
+{% endblock %}

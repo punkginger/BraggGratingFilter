@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Bragg Grating Studio</title>
+    
+    <!--<script src="https://polyfill.io/v3/polyfill.min.js?features=es6"></script> polyfill having security issue rn-->
+    <script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    
+    <style>
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: #f4f7f6; margin: 0; color: #2c3e50; }
+        .navbar { background-color: #2c3e50; padding: 15px 30px; display: flex; gap: 20px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
+        .navbar a { color: white; text-decoration: none; font-size: 16px; font-weight: bold; padding: 8px 16px; border-radius: 4px; transition: background 0.3s; }
+        .navbar a:hover { background-color: #34495e; }
+        .navbar a.active { background-color: #3498db; }
+        .header { text-align: center; margin: 40px 0 30px 0; }
+        .container { max-width: 800px; margin: 0 auto; padding: 0 20px; }
+        .card { background: white; padding: 30px; border-radius: 12px; box-shadow: 0 8px 16px rgba(0,0,0,0.05); border-top: 5px solid #3498db; }
+        h2 { margin-top: 0; color: #2c3e50; font-size: 22px; }
+        .subtitle { color: #7f8c8d; font-size: 14px; margin-bottom: 20px; }
+        .form-group { margin-bottom: 15px; }
+        label { font-weight: 600; display: block; margin-bottom: 5px; font-size: 15px; }
+        input, select { width: 100%; padding: 10px; border: 1px solid #bdc3c7; border-radius: 6px; box-sizing: border-box; font-size: 14px; }
+        button { width: 100%; padding: 12px; background-color: #3498db; color: white; border: none; border-radius: 6px; font-size: 16px; font-weight: bold; cursor: pointer; margin-top: 15px; transition: background 0.3s; }
+        button:hover { background-color: #2980b9; }
+    </style>
+</head>
+<body>
+    <div class="navbar">
+        <a href="/" class="{% if active_page == 'simulate' %}active{% endif %}">Direct Simulation</a>
+        <a href="/optimize" class="{% if active_page == 'optimize' %}active{% endif %}">Parameter Optimization</a>
+        <a href="#" style="opacity: 0.5;">Filter Design (Coming Soon!)</a>
+    </div>
+    <div class="header">
+        <h1>Advanced Bragg Grating Studio</h1>
+        <p>Signal Processing & Optical Filter Design</p>
+    </div>
+    <div class="container">
+        {% block content %}{% endblock %}
+    </div>
+</body>
+</html>
