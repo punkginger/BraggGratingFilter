@@ -111,11 +111,12 @@ def bragg_grating_tmm(f_array, Lm, Le, nmm, nee, am, ae, N, Lc, pishift, Lpi, de
         S11 = T[1, 0] / T[0, 0]
         S12 = np.linalg.det(T) / T[0, 0] 
         
+        # get the ref and trans power array
         reflected[i] = np.abs(S11)**2
         transmitted[i] = np.abs(S12)**2
 
     # Find the deepest part of the stopband
-    min_loc = np.argmin(transmitted)
-    stopband = f[min_loc]
+    min_location = np.argmin(transmitted)
+    stopband = f[min_location]
     
     return reflected, transmitted, stopband
