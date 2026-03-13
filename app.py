@@ -2,6 +2,7 @@ from flask import Flask, render_template, request, jsonify
 import numpy as np
 from engineer_bragg_grating import engineer_bragg_grating
 from bragg_grating_tmm import bragg_grating_tmm
+from engineer_2d_bragg_grating import run_2d_sweep
 
 app = Flask(__name__)
 
@@ -12,6 +13,10 @@ def simulate_page():
 @app.route('/optimize')
 def optimize_page():
     return render_template('optimize.html', active_page='optimize')
+
+@app.route('/design')
+def design_page():
+    return render_template('design.html', active_page='design')
 
 
 @app.route('/api/simulate', methods=['POST'])
@@ -88,6 +93,42 @@ def run_optimization():
 
     except Exception as e:
         # We catch any ValueError thrown by the engineer_bragg_grating engine!
+        return jsonify({"status": "error", "message": str(e)}), 400
+
+@app.route('/api/design', methods=['POST'])
+def run_design():
+    data = request.json
+    
+    try:
+        resolution = int(data['resolution'])
+        Lpi_array = np.linspace(data['lpi_start'], data['lpi_stop'], resolution)
+        delta_array = np.linspace(data['delta_start'], data['delta_stop'], resolution)
+        
+
+        f_target = float(data['f_target'])
+        Lm = float(data['Lm'])
+        Le = float(data['Le'])
+        nmm = float(data['nmm'])
+        nee = float(data['nee'])
+        am = float(data['am'])
+        ae = float(data['ae'])
+        N = int(data['N'])
+        Lc = float(data['Lc'])
+        
+        error_matrix, best_Lpi, best_delta = run_2d_sweep(
+            f_target, Lpi_array, delta_array, Lm, Le, nmm, nee, am, ae, N, Lc
+        )
+        
+        return jsonify({
+            "status": "success",
+            "optimal_Lpi": float(best_Lpi),
+            "optimal_delta": float(best_delta),
+            "Lpi_array": Lpi_array.tolist(),
+            "delta_array": delta_array.tolist(),
+            "error_matrix": error_matrix.tolist() 
+        }), 200
+
+    except Exception as e:
         return jsonify({"status": "error", "message": str(e)}), 400
 
 if __name__ == '__main__':

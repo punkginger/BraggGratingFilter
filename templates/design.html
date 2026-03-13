@@ -1,0 +1,229 @@
+{% extends "base.html" %}
+
+{% block content %}
+<style>
+    .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; }
+    .section-title { grid-column: 1 / -1; margin-top: 20px; margin-bottom: 5px; border-bottom: 2px solid #ecf0f1; padding-bottom: 5px; color: #2980b9; }
+    .warning-box { background-color: #e8f4f8; color: #2980b9; padding: 15px; border-radius: 6px; border-left: 5px solid #3498db; margin-bottom: 20px; font-weight: bold; }
+    #error-box { display: none; background-color: #f8d7da; color: #721c24; padding: 15px; border-radius: 6px; border-left: 5px solid #f5c6cb; margin-bottom: 20px; font-weight: bold; }
+    .info-box { background-color: #e8f4f8; color: #2980b9; padding: 15px; border-radius: 6px; border-left: 5px solid #3498db; margin-bottom: 20px; font-weight: bold;}
+    .readonly-input { background-color: #e9ecef; cursor: not-allowed; font-weight: bold; color: #2c3e50; }
+</style>
+
+<div class="card" style="border-top-color: #2980b9;">
+    <h2>Single-Mode QCL Designer</h2>
+    <p class="subtitle">Physics-driven distributed feedback (DFB) laser design with 2D optimization.</p>
+    
+    <div class="info-box">
+        Workflow: The engine auto-calculates the base grating periods using the Bragg condition, then performs a 2D sweep on the \(\pi\)-shift to guarantee global single-mode optimality.
+    </div>
+
+    <div id="error-box"></div>
+
+    <div class="form-grid">
+        <h3 class="section-title">1. Target & Material Specifications</h3>
+        <div class="form-group">
+            <label>Target Freq \(f_{target}\) [THz]:</label>
+            <input type="number" id="des-freq" placeholder="e.g., 2.5" step="0.1" oninput="calculateBragg()">
+        </div>
+        <div class="form-group">
+            <label>Duty Cycle (Metal Ratio) [%]:</label>
+            <input type="number" id="des-duty" value="50" step="1" oninput="calculateBragg()">
+        </div>
+        
+        <div class="form-group">
+            <label>Metal Refractive Index \(n_{mm}\):</label>
+            <input type="number" id="des-nmm" placeholder="e.g., 3.67" step="0.01" oninput="calculateBragg()">
+        </div>
+        <div class="form-group">
+            <label>Etch Refractive Index \(n_{ee}\):</label>
+            <input type="number" id="des-nee" placeholder="e.g., 3.07" step="0.01" oninput="calculateBragg()">
+        </div>
+        <div class="form-group">
+            <label>Metal Absorption \(\alpha_m\) [m\(^{-1}\)]:</label>
+            <input type="number" id="des-am" placeholder="e.g., 750">
+        </div>
+        <div class="form-group">
+            <label>Etch Absorption \(\alpha_e\) [m\(^{-1}\)]:</label>
+            <input type="number" id="des-ae" placeholder="e.g., 3812">
+        </div>
+
+        <div class="form-group"><label>Bragg Periods \(N\) (Even):</label><input type="number" id="des-N" placeholder="e.g., 14"></div>
+        <div class="form-group"><label>Chip Length \(L_c\) [m]:</label><input type="number" id="des-Lc" placeholder="e.g., 2e-3"></div>
+
+        <h3 class="section-title">2. Auto-Calculated Base Structure</h3>
+        <div class="form-group">
+            <label>Effective Refractive Index \(n_{eff}\):</label>
+            <input type="text" id="calc-neff" class="readonly-input" readonly>
+        </div>
+        <div class="form-group">
+            <label>Grating Period \(\Lambda\) [m]:</label>
+            <input type="text" id="calc-period" class="readonly-input" readonly>
+        </div>
+        <div class="form-group">
+            <label>Auto Metal Length \(L_m\) [m]:</label>
+            <input type="text" id="calc-Lm" class="readonly-input" readonly>
+        </div>
+        <div class="form-group">
+            <label>Auto Etch Length \(L_e\) [m]:</label>
+            <input type="text" id="calc-Le" class="readonly-input" readonly>
+        </div>
+
+        <h3 class="section-title">3. Defect 2D Sweep Space (\(L_{\pi}\) & \(\delta\))</h3>
+        <div class="form-group"><label>\(L_{\pi}\) Start [m]:</label><input type="number" id="sweep-lpi-start" placeholder="e.g., 1e-6"></div>
+        <div class="form-group"><label>\(L_{\pi}\) Stop [m]:</label><input type="number" id="sweep-lpi-stop" placeholder="e.g., 10e-6"></div>
+        
+        <div class="form-group"><label>\(\delta\) Start [m]:</label><input type="number" id="sweep-delta-start" placeholder="e.g., -1e-6"></div>
+        <div class="form-group"><label>\(\delta\) Stop [m]:</label><input type="number" id="sweep-delta-stop" placeholder="e.g., 1e-6"></div>
+        
+        <div class="form-group" style="grid-column: 1 / -1;">
+            <label>Grid Resolution (Points per axis):</label>
+            <input type="number" id="sweep-res" placeholder="e.g., 20 (Yields 400 total simulations)">
+        </div>
+    </div>
+
+    <button onclick="runDesign()" id="run-btn">Execute 2D Optimization</button>
+</div>
+<script src="https://cdn.plot.ly/plotly-2.27.0.min.js"></script>
+
+<div class="card" id="chart-card" style="display: none; margin-top: 30px; border-top-color: #8e44ad;">
+    <h3 id="result-text" style="text-align: center; color: #8e44ad;"></h3>
+    <p style="text-align: center; color: #7f8c8d;">Finding the global minimum error (Dark Blue = Best Performance)</p>
+    <div id="plotly-heatmap" style="width: 100%; height: 500px;"></div>
+</div>
+
+<script>
+    function calculateBragg() {
+        const freqTHz = parseFloat(document.getElementById('des-freq').value);
+        const dutyCycle = parseFloat(document.getElementById('des-duty').value) / 100.0;
+        
+        const n_metal = parseFloat(document.getElementById('des-nmm').value);
+        const n_etch = parseFloat(document.getElementById('des-nee').value);
+
+        // Wait until they have filled in the target and BOTH indices before calculating
+        if (isNaN(freqTHz) || freqTHz <= 0 || isNaN(dutyCycle) || isNaN(n_metal) || isNaN(n_etch)) {
+            document.getElementById('calc-neff').value = '';
+            document.getElementById('calc-period').value = '';
+            document.getElementById('calc-Lm').value = '';
+            document.getElementById('calc-Le').value = '';
+            return;
+        }
+
+        // 1. Calculate the Effective Refractive Index
+        const n_eff = (n_metal * dutyCycle) + (n_etch * (1.0 - dutyCycle));
+
+        // 2. The Bragg Condition Math! (Lambda = c / (2 * neff * f))
+        const c = 299792458; // Speed of light in m/s
+        const freqHz = freqTHz * 1e12;
+        const period = c / (2.0 * n_eff * freqHz);
+
+        // 3. Split the period into Metal and Etch lengths
+        const Lm = period * dutyCycle;
+        const Le = period * (1.0 - dutyCycle);
+
+        // 4. Display the gorgeous results to the user
+        document.getElementById('calc-neff').value = n_eff.toFixed(4);
+        document.getElementById('calc-period').value = period.toExponential(4);
+        document.getElementById('calc-Lm').value = Lm.toExponential(4);
+        document.getElementById('calc-Le').value = Le.toExponential(4);
+    }
+
+    window.onload = calculateBragg;
+    async function runDesign() {
+        const errorBox = document.getElementById('error-box');
+        const runBtn = document.getElementById('run-btn');
+        const chartCard = document.getElementById('chart-card');
+        
+        errorBox.style.display = 'none'; 
+        chartCard.style.display = 'none';
+
+        // Grab all our inputs!
+        const f_target = parseFloat(document.getElementById('des-freq').value) * 1e12; // Convert to Hz
+        const Lm = parseFloat(document.getElementById('calc-Lm').value);
+        const Le = parseFloat(document.getElementById('calc-Le').value);
+        const nmm = parseFloat(document.getElementById('des-nmm').value);
+        const nee = parseFloat(document.getElementById('des-nee').value);
+        const am = parseFloat(document.getElementById('des-am').value);
+        const ae = parseFloat(document.getElementById('des-ae').value);
+        const N = parseInt(document.getElementById('des-N').value);
+        const Lc = parseFloat(document.getElementById('des-Lc').value);
+
+        const lpi_start = parseFloat(document.getElementById('sweep-lpi-start').value);
+        const lpi_stop = parseFloat(document.getElementById('sweep-lpi-stop').value);
+        const delta_start = parseFloat(document.getElementById('sweep-delta-start').value);
+        const delta_stop = parseFloat(document.getElementById('sweep-delta-stop').value);
+        const res = parseInt(document.getElementById('sweep-res').value);
+
+        if (isNaN(Lm) || isNaN(Le)) { showError("Validation Error: Please fill out the Target and Material sections."); return; }
+        if ([am, ae, N, Lc, lpi_start, lpi_stop, delta_start, delta_stop, res].some(isNaN)) { showError("Validation Error: All sweep parameters must be specified."); return; }
+        if (res < 2 || res > 50) { showError("Validation Error: Grid resolution must be between 2 and 50."); return; }
+
+        // Lock the UI!
+        runBtn.disabled = true;
+        runBtn.innerHTML = `Running ${res * res} Matrix Simulations... Please Wait!`;
+        runBtn.style.backgroundColor = "#95a5a6";
+
+        const payload = {
+            f_target: f_target, Lm: Lm, Le: Le, nmm: nmm, nee: nee, am: am, ae: ae, N: N, Lc: Lc,
+            lpi_start: lpi_start, lpi_stop: lpi_stop, delta_start: delta_start, delta_stop: delta_stop, resolution: res
+        };
+
+        try {
+            const response = await fetch('/api/design', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload)
+            });
+
+            const data = await response.json();
+
+            if (response.ok) {
+                document.getElementById('result-text').innerHTML = `Global Minimum Found!<br><span style="font-size: 18px; color: #2c3e50;">Best \(L_{\pi}\) = ${data.optimal_Lpi.toExponential(3)} m | Best \(\delta\) = ${data.optimal_delta.toExponential(3)} m</span>`;
+                drawHeatmap(data.Lpi_array, data.delta_array, data.error_matrix);
+                if (window.MathJax) { MathJax.typesetPromise(); }
+            } else {
+                showError("Server Error: " + data.message);
+            }
+        } catch (error) {
+            showError("Connection Failed: Ensure the Flask server is running.");
+        } finally {
+            runBtn.disabled = false;
+            runBtn.innerHTML = "Execute 2D Optimization";
+            runBtn.style.backgroundColor = "#8e44ad";
+        }
+    }
+
+    // 4. THE PLOTLY CONTOUR MAGIC!
+    function drawHeatmap(x_array, y_array, z_matrix) {
+        const chartCard = document.getElementById('chart-card');
+        chartCard.style.display = 'block';
+
+        // Plotly expects z to be a 2D array, which our Python backend perfectly provided!
+        const trace = {
+            x: x_array, // Lpi values
+            y: y_array, // Delta values
+            z: z_matrix, // The Error Matrix
+            type: 'contour', // Contour plots look much more professional than blocky heatmaps!
+            colorscale: 'Viridis', // A gorgeous scientific colour scheme
+            reversescale: true, // We reverse it so the MINIMUM error (the best spot) is the brightest colour!
+            colorbar: { title: 'Frequency Error (Hz)' }
+        };
+
+        const layout = {
+            xaxis: { title: 'Pi-Shift Length L_pi (m)', exponentformat: 'e' },
+            yaxis: { title: 'Deviation Delta (m)', exponentformat: 'e' },
+            margin: { t: 30, b: 50, l: 80, r: 20 }
+        };
+
+        Plotly.newPlot('plotly-heatmap', [trace], layout);
+        chartCard.scrollIntoView({ behavior: 'smooth' });
+    }
+
+    function showError(message) {
+        const errorBox = document.getElementById('error-box');
+        errorBox.innerHTML = message;
+        errorBox.style.display = 'block';
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+</script>
+{% endblock %}
