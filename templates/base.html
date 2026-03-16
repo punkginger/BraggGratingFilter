@@ -30,12 +30,12 @@
 <body>
     <div class="navbar">
         <a href="/" class="{% if active_page == 'simulate' %}active{% endif %}">Direct Simulation</a>
-        <a href="/optimize" class="{% if active_page == 'optimize' %}active{% endif %}">Parameter Sweep</a>
+        <!-- <a href="/optimize" class="{% if active_page == 'optimize' %}active{% endif %}">Parameter Sweep</a> -->
         <a href="/design" class="{% if active_page == 'design' %}active{% endif %}">Filter Design</a>
     </div>
     <div class="header">
         <h1>Advanced Bragg Grating Studio</h1>
-        <p>Simulation, Optimization and Designing a single-mode laser</p>
+        <p>Simulation and Designing a single-mode laser</p>
     </div>
     <div class="container">
         {% block content %}{% endblock %}
