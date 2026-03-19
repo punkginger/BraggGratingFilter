@@ -3,7 +3,6 @@ from scipy.signal import find_peaks
 from bragg_grating_tmm import bragg_grating_tmm
 
 def optimize_delta(f_target, delta_array, Lm, Le, nmm, nee, am, ae, N, Lc, Lpi):
-    # We use a 500 GHz window (+/- 0.25 THz) to safely catch the peak
     f_test = np.linspace(f_target - 0.25e12, f_target + 0.25e12, 2000)
     
     error_array = []

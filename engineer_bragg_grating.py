@@ -4,7 +4,7 @@ from bragg_grating_tmm import bragg_grating_tmm
 
 def engineer_bragg_grating(f_target, Lm, Le, nmm, nee, am, ae, N, Lc, pishift, Lpi, delta):
     
-    # 1. Force everything to be a 1D array so we can measure their lengths safely
+    # Force everything to be a 1D array
     Lm = np.atleast_1d(Lm)
     Le = np.atleast_1d(Le)
     nmm = np.atleast_1d(nmm)
@@ -15,7 +15,7 @@ def engineer_bragg_grating(f_target, Lm, Le, nmm, nee, am, ae, N, Lc, pishift, L
     Lc = np.atleast_1d(Lc)
     Lpi = np.atleast_1d(Lpi)
 
-    # 2. Check exactly which parameters are arrays
+    # Check exactly which parameters are longer than 1 so we can perform the sweep
     sweepLm = len(Lm) > 1
     sweepLe = len(Le) > 1
     sweepnmm = len(nmm) > 1
@@ -39,10 +39,10 @@ def engineer_bragg_grating(f_target, Lm, Le, nmm, nee, am, ae, N, Lc, pishift, L
 
     def calculate_error(transmitted_power):
         valleys, _ = find_peaks(-transmitted_power)
-        if len(valleys) < 2: return np.inf
+        if len(valleys) < 2: return np.inf # the wave should be like a "W"
         
         valley_depths = -transmitted_power[valleys]
-        sorted_indices = np.argsort(valley_depths)[::-1]
+        sorted_indices = np.argsort(valley_depths)[::-1] # this make sure that the deepest two are picked
         idx_start = min(valleys[sorted_indices[0]], valleys[sorted_indices[1]])
         idx_end = max(valleys[sorted_indices[0]], valleys[sorted_indices[1]])
         

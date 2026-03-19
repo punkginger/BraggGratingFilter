@@ -10,19 +10,19 @@ def run_delta_test():
     print("Finding the best delta parameter for target frequency...")
     
     # 1. PERFECT BRAGG PARAMETERS FOR 2.0 THz!
-    f_target = 2.0e12  
-    Lm = 11.12e-6      # Corrected to center the stopband at 2.0 THz
-    Le = 11.12e-6      # Corrected to center the stopband at 2.0 THz
+    f_target = 3.3e12  
+    Lm = (12.93 - 3.11) * 1e-6        # Corrected to center the stopband at 2.0 THz
+    Le = 3.11e-6       # Corrected to center the stopband at 2.0 THz
     nmm = 3.67                
     nee = 3.07                 
     am = 750                 
     ae = 3812               
-    N = 40             # Increased to 40 so the stopband is deep and obvious!
+    N = 14             # Increased to 40 so the stopband is deep and obvious!
     Lc = 2e-3                  
-    Lpi = 11.12e-6     # Quarter-wave phase shift (Lambda / 2)
+    Lpi = 2*Le     # Quarter-wave phase shift (Lambda / 2)
     
     # 2. The 1D Sweep Array for Delta (-5 um to 5 um)
-    delta_sweep = np.linspace(-5e-6, 5e-6, 50)
+    delta_sweep = np.linspace(200e-6, 250e-6, 50)
 
     # 3. Call the Unit 3 engine
     print("Running the heavy physics engine, please wait...")
