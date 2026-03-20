@@ -23,7 +23,7 @@ def run_optimizer_test():
     pishift = True                
     Lpi = 2 * Le      
     delta = 0.0
-    Lm_sweep = np.linspace(8e-6, 12e-6, 50)
+    Lm_sweep = np.linspace(8e-6, 15e-6, 50)
 
     delta_f_results, optimal_Lm = engineer_bragg_grating(
         f_target, Lm_sweep, Le, nmm, nee, am, ae, N, Lc, pishift, Lpi, delta
