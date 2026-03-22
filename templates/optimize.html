@@ -119,7 +119,7 @@
         for (let i = 0; i < staticIds.length; i++) {
             const paramId = staticIds[i];
             if (paramId === selectedSweep) {
-                staticValues[paramId] = 0; // We will let the backend handle this one!
+                staticValues[paramId] = 0; 
                 continue;
             }
 
@@ -136,7 +136,7 @@
         runBtn.innerHTML = "Optimizing... This may take a moment!";
         runBtn.style.backgroundColor = "#95a5a6";
 
-        // 4. Package the JSON Payload
+
         const payload = {
             f_target: targetFreq * 1e12, // Convert THz to Hz
             sweep_param: selectedSweep,
@@ -148,7 +148,6 @@
         };
 
         try {
-            // 5. Send to the Python Flask Server
             const response = await fetch('/api/optimize', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
@@ -158,10 +157,8 @@
             const data = await response.json();
 
             if (response.ok) {
-                // 6. Success! Display the optimal value and draw the V-curve
                 document.getElementById('result-text').innerHTML = `Optimal Value Found: ${data.optimal_value.toExponential(4)}`;
                 
-                // Get the proper label name for the X-axis
                 const titleText = document.getElementById('sweep-param').options[document.getElementById('sweep-param').selectedIndex].text;
                 drawChart(data.sweep_array, data.error_array, titleText);
             } else {
@@ -191,11 +188,11 @@
                 labels: x_data, 
                 datasets: [{
                     label: 'Frequency Error (Distance from Target)',
-                    data: y_data, // The error array from your backend!
-                    borderColor: '#27ae60', // A lovely green for optimization!
+                    data: y_data, 
+                    borderColor: '#27ae60', 
                     backgroundColor: 'rgba(39, 174, 96, 0.1)',
                     borderWidth: 2,
-                    pointRadius: 3, // Show dots here so we can see the exact sweep points
+                    pointRadius: 3, 
                     pointBackgroundColor: '#27ae60',
                     tension: 0.2,
                     fill: true

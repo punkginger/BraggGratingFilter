@@ -128,7 +128,7 @@
         errorBox.style.display = 'none'; 
         chartCard.style.display = 'none';
 
-        const f_target_raw = parseFloat(document.getElementById('des-freq').value); 
+        const f_target = parseFloat(document.getElementById('des-freq').value); 
         const delta = parseFloat(document.getElementById('des-delta').value);
         const nmm = parseFloat(document.getElementById('des-nmm').value);
         const nee = parseFloat(document.getElementById('des-nee').value);
@@ -137,7 +137,7 @@
         const N = parseInt(document.getElementById('des-N').value);
         const Lc = parseFloat(document.getElementById('des-Lc').value);
 
-        if ([f_target_raw, delta, nmm, nee, am, ae, N, Lc].some(isNaN)) { 
+        if ([f_target, delta, nmm, nee, am, ae, N, Lc].some(isNaN)) { 
             showError("Validation Error: Please fill out all required physics parameters."); 
             return; 
         }
@@ -145,7 +145,7 @@
             showError("The number of Bragg periods (N) must be a positive, EVEN whole number!");
             return;
         }
-        if (f_target_raw <= 0) {
+        if (f_target <= 0) {
             showError("Target frequency must be greater than zero.");
             return;
         }
@@ -155,7 +155,7 @@
         runBtn.style.backgroundColor = "#95a5a6";
 
         const payload = {
-            freq: f_target_raw, nmm: nmm, nee: nee, am: am, ae: ae, N: N, Lc: Lc, delta: delta,
+            freq: f_target*1e12, nmm: nmm, nee: nee, am: am, ae: ae, N: N, Lc: Lc, delta: delta,
             duty_min: 0.40, duty_max: 0.85
         };
 

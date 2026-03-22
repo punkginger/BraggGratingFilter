@@ -58,7 +58,6 @@ def bragg_grating_tmm(f_array, Lm, Le, nmm, nee, am, ae, N, Lc, pishift, Lpi, de
     phi_minus = beta_m * Lm - beta_e * Le
     
     
-    # Loop through each frequency point
     for i in range(len(f)):
         
         # 1. Calculate precise phase lengths based on pishift AND delta
@@ -117,6 +116,6 @@ def bragg_grating_tmm(f_array, Lm, Le, nmm, nee, am, ae, N, Lc, pishift, Lpi, de
 
     # Find the deepest part of the stopband
     min_location = np.argmin(transmitted)
-    stopband = f[min_location] # I personally dont understand why dr demic write like this maybe i should ask him.
+    stopband = f[min_location] 
     
     return reflected, transmitted, stopband

@@ -121,7 +121,7 @@
 
         runBtn.disabled = true;
         runBtn.innerHTML = "Calculating... Please Wait";
-        runBtn.style.backgroundColor = "#95a5a6"; // Turn it grey
+        runBtn.style.backgroundColor = "#95a5a6"; 
 
         const payload = {
             f_start: fstart * 1e12, // Convert THz to Hz for the backend
@@ -168,7 +168,7 @@
                 labels: x_data, 
                 datasets: [{
                     label: 'Transmission Spectrum',
-                    data: y_data, // The power transmission array
+                    data: y_data, 
                     borderColor: '#2980b9',
                     borderWidth: 2,
                     pointRadius: 0, // Hide the dots

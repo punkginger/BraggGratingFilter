@@ -17,10 +17,7 @@ def design_page():
 @app.route('/api/simulate', methods=['POST'])
 def run_simulation():
     try:
-        # Just in case the request is completely empty, default to an empty dictionary
         data = request.json or {}
-        
-        # Safely extract with defaults to prevent any unexpected crashes, love!
         f_start = float(data.get('f_start', 0))
         f_stop = float(data.get('f_stop', 0))
         points = int(data.get('points', 1000))
@@ -62,9 +59,7 @@ def run_design():
     try:
         data = request.json or {}
         
-        f_target_THz = float(data.get('freq', 0))
-        f_target_Hz = f_target_THz * 1e12 
-        
+        f_target = float(data.get('freq', 0))
         delta = float(data.get('delta', 0))
         nmm = float(data.get('nmm', 0))
         nee = float(data.get('nee', 0))
@@ -78,14 +73,9 @@ def run_design():
         duty_cycle_range = (duty_min, duty_max)
         
         Lm_array, Le_array, peak_transmissions, optimal_D, optimal_Lm, optimal_Le = optimize_duty_cycle(
-            f_target_Hz, nmm, nee, am, ae, N, Lc, duty_cycle_range, delta
+            f_target, nmm, nee, am, ae, N, Lc, duty_cycle_range, delta
         )
-        
-        lm_min_um = np.min(Lm_array) * 1e6
-        lm_max_um = np.max(Lm_array) * 1e6
-        le_min_um = np.min(Le_array) * 1e6
-        le_max_um = np.max(Le_array) * 1e6
-        
+                
         results = {
             "Lm_array": Lm_array.tolist(),
             "optimal_Lm": f"{optimal_Lm * 1e6:.3f}",
