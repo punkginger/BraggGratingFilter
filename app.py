@@ -3,6 +3,7 @@ import numpy as np
 from engineer_bragg_grating import engineer_bragg_grating
 from bragg_grating_tmm import bragg_grating_tmm
 from optimize_duty_cycle import optimize_duty_cycle
+from optimize_n import optimize_n
 
 app = Flask(__name__)
 
@@ -50,15 +51,13 @@ def run_simulation():
         }), 200
 
     except Exception as e:
-        print(f"Oh eck, a simulation error: {e}")
         return jsonify({"status": "error", "message": str(e)}), 400
 
 
-@app.route('/api/design', methods=['POST'])
+@app.route('/api/sweep_duty', methods=['POST'])
 def run_design():
     try:
         data = request.json or {}
-        
         f_target = float(data.get('freq', 0))
         delta = float(data.get('delta', 0))
         nmm = float(data.get('nmm', 0))
@@ -104,7 +103,52 @@ def run_design():
         return jsonify({"status": "success", "data": results}), 200
         
     except Exception as e:
-        print(f"Oh eck, a design error occurred: {e}")
+        return jsonify({"status": "error", "message": str(e)}), 400
+
+@app.route('/api/sweep_n', methods=['POST'])
+def sweep_n_endpoint():
+    try:
+        data = request.json or {}
+        
+        f_target = float(data.get('freq', 0))
+        delta = float(data.get('delta', 0))
+        nmm = float(data.get('nmm', 0))
+        nee = float(data.get('nee', 0))
+        am = float(data.get('am', 0))
+        ae = float(data.get('ae', 0))
+        Lc = float(data.get('Lc', 0))
+        
+        fixed_duty = float(data.get('duty_cycle', 0))
+        n_min = int(data.get('n_min', 10))
+        n_max = int(data.get('n_max', 40))
+        
+        weight_trans = float(data.get('weight_trans', 0))
+        weight_q = float(data.get('weight_q', 0))
+        weight_rej = float(data.get('weight_rej', 0))
+
+        n_array, p_trans, q_facs, rejs, sb_width, opt_N, best_idx = optimize_n(
+            f_target, nmm, nee, am, ae, fixed_duty, n_min, n_max, Lc, delta, weight_trans, weight_q, weight_rej
+        )
+        
+        optimal_q = q_facs[best_idx]
+        optimal_rej = rejs[best_idx]
+
+        results = {
+            "n_array": n_array.tolist(),
+            "peak_transmissions": p_trans.tolist(),
+            "q_factors": q_facs.tolist(),
+            "rejections": rejs.tolist(),
+            
+            "optimal_N": int(opt_N),
+            "optimal_q": float(optimal_q),
+            "optimal_rej": float(optimal_rej),
+            "optimal_sb_width": float(sb_width), 
+            "best_idx": int(best_idx)
+        }
+
+        return jsonify({"status": "success", "data": results}), 200
+
+    except Exception as e:
         return jsonify({"status": "error", "message": str(e)}), 400
 
 

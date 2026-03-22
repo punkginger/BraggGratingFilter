@@ -8,107 +8,127 @@
     #error-box { display: none; background-color: #f8d7da; color: #721c24; padding: 15px; border-radius: 6px; border-left: 5px solid #f5c6cb; margin-bottom: 20px; font-weight: bold; }
     .readonly-input { background-color: #e9ecef; cursor: not-allowed; font-weight: bold; color: #2c3e50; }
     .highlight-result { font-size: 20px; color: #2980b9; margin-top: 10px; }
-    .slider-group { 
-        display: flex; 
-        align-items: center; 
-        gap: 15px; 
-    }
-    .weight-slider { 
-        flex-grow: 1; 
-        cursor: pointer; 
-    }
-    .weight-number { 
-        width: 80px; 
-        font-weight: bold; 
-        color: #2c3e50; 
-    }
+    .slider-group { display: flex; align-items: center; gap: 15px; }
+    .weight-slider { flex-grow: 1; cursor: pointer; }
+    .weight-number { width: 80px; font-weight: bold; color: #2c3e50; }
+    
+    /* NEW: Tab Styling */
+    .tab-container { display: flex; gap: 10px; margin-top: 20px; margin-bottom: 15px; }
+    .tab-btn { padding: 12px 24px; font-weight: bold; cursor: pointer; border: none; background-color: #ecf0f1; color: #7f8c8d; border-radius: 6px; font-size: 16px; transition: 0.3s; }
+    .tab-btn:hover { background-color: #bdc3c7; }
+    .tab-btn.active { background-color: #2980b9; color: white; }
+    .tab-content { display: none; padding: 15px; background-color: #f8f9fa; border-radius: 6px; border: 1px solid #dee2e6; }
+    .tab-content.active { display: block; }
 </style>
 
 <div class="card" style="border-top-color: #2980b9;">
     <h2>THz QCL Bragg Grating Filter Designer</h2>
     
     <div class="info-box">
-        Workflow: Set your target and materials. The engine will sweep the duty cycle (40% - 85%) automatically, calculating the corresponding L_m and L_e for each step. 
+        Workflow: Set your target and materials globally. Use the tabs below to choose whether to optimize the Duty Cycle or scan the Number of Periods (N).
     </div>
 
     <div id="error-box"></div>
 
     <div class="form-grid">
-    <h3 class="section-title">1. Target & Material Specifications</h3>
-    <div class="form-group">
-        <label>Target Freq (f_target) [THz]:</label>
-        <input type="number" id="des-freq" placeholder="e.g., 2.0" step="0.1" oninput="calculateRanges()">
-    </div>
-    <div class="form-group">
-        <label>Phase Deviation (delta) [m]:</label>
-        <input type="number" id="des-delta" placeholder="e.g., 0.0" step="1e-6">
-    </div>
-    
-    <div class="form-group">
-        <label>Metal Refractive Index (n_mm):</label>
-        <input type="number" id="des-nmm" placeholder="e.g., 3.67" step="0.01" oninput="calculateRanges()">
-    </div>
-    <div class="form-group">
-        <label>Etch Refractive Index (n_ee):</label>
-        <input type="number" id="des-nee" placeholder="e.g., 3.07" step="0.01" oninput="calculateRanges()">
-    </div>
-    <div class="form-group">
-        <label>Metal Absorption (a_m) [m^-1]:</label>
-        <input type="number" id="des-am" placeholder="e.g., 750">
-    </div>
-    <div class="form-group">
-        <label>Etch Absorption (a_e) [m^-1]:</label>
-        <input type="number" id="des-ae" placeholder="e.g., 3812">
-    </div>
-    <div class="form-group">
-        <label>Bragg Periods (N) (Even Integer):</label>
-        <input type="number" id="des-N" placeholder="e.g., 14" step="2">
-    </div>
-    <div class="form-group">
-        <label>Chip Length (L_c) [m]:</label>
-        <input type="number" id="des-Lc" placeholder="e.g., 2e-3">
+        <h3 class="section-title">1. Global Material & Target Specs</h3>
+        <div class="form-group">
+            <label>Target Freq (f_target) [THz]:</label>
+            <input type="number" id="des-freq" placeholder="e.g., 2.0" step="0.1" oninput="calculateRanges()">
+        </div>
+        <div class="form-group">
+            <label>Phase Deviation (delta) [m]:</label>
+            <input type="number" id="des-delta" placeholder="e.g., 0.0" step="1e-6">
+        </div>
+        <div class="form-group">
+            <label>Metal Refractive Index (n_mm):</label>
+            <input type="number" id="des-nmm" placeholder="e.g., 3.67" step="0.01" oninput="calculateRanges()">
+        </div>
+        <div class="form-group">
+            <label>Etch Refractive Index (n_ee):</label>
+            <input type="number" id="des-nee" placeholder="e.g., 3.07" step="0.01" oninput="calculateRanges()">
+        </div>
+        <div class="form-group">
+            <label>Metal Absorption (a_m) [m^-1]:</label>
+            <input type="number" id="des-am" placeholder="e.g., 750">
+        </div>
+        <div class="form-group">
+            <label>Etch Absorption (a_e) [m^-1]:</label>
+            <input type="number" id="des-ae" placeholder="e.g., 3812">
+        </div>
+        <div class="form-group">
+            <label>Chip Length (L_c) [m]:</label>
+            <input type="number" id="des-Lc" placeholder="e.g., 2e-3">
+        </div>
+    </div> <div class="tab-container">
+        <button id="btn-tab-duty" class="tab-btn active" onclick="switchMode('duty')">Mode 1: Sweep Duty Cycle</button>
+        <button id="btn-tab-n" class="tab-btn" onclick="switchMode('n')">Mode 2: Sweep Periods (N)</button>
     </div>
 
-    <h3 class="section-title">2. Calculated Sweep Boundaries (40% - 85% Duty Cycle)</h3>
-    <div class="form-group">
-        <label>L_m Search Range [um]:</label>
-        <input type="text" id="calc-Lm-range" class="readonly-input" readonly>
+    <div id="tab-duty" class="tab-content active">
+        <div class="form-grid">
+            <div class="form-group" style="grid-column: 1 / -1;">
+                <label>Bragg Periods (N) (Even Integer):</label>
+                <input type="number" id="des-N-fixed" placeholder="e.g., 14" step="2">
+            </div>
+            <h3 class="section-title" style="margin-top: 0;">Calculated Sweep Boundaries (40% - 85%)</h3>
+            <div class="form-group">
+                <label>L_m Search Range [um]:</label>
+                <input type="text" id="calc-Lm-range" class="readonly-input" readonly>
+            </div>
+            <div class="form-group">
+                <label>L_e Search Range [um]:</label>
+                <input type="text" id="calc-Le-range" class="readonly-input" readonly>
+            </div>
+        </div>
     </div>
-    <div class="form-group">
-        <label>L_e Search Range [um]:</label>
-        <input type="text" id="calc-Le-range" class="readonly-input" readonly>
-    </div>
-</div>
 
-    <h3 class="section-title">3. Optimization Weights (Must sum to 100%)</h3>
-    
-    <div class="form-group">
-        <label>Peak Transmission Weight [%]:</label>
-        <div class="slider-group">
-            <input type="range" id="slider-trans" class="weight-slider" value="50" min="0" max="100" oninput="syncWeight('trans', 'slider')">
-            <input type="number" id="num-trans" class="weight-number" value="50" min="0" max="100" oninput="syncWeight('trans', 'num')">
+    <div id="tab-n" class="tab-content">
+        <div class="form-grid">
+            <div class="form-group" style="grid-column: 1 / -1;">
+                <label>Fixed Duty Cycle [%]:</label>
+                <input type="number" id="des-duty-fixed" placeholder="e.g., 65.5" step="0.1">
+            </div>
+            <h3 class="section-title" style="margin-top: 0;">Period Search Boundaries</h3>
+            <div class="form-group">
+                <label>Min Periods (N) [Even]:</label>
+                <input type="number" id="scan-n-min" value="10" step="2">
+            </div>
+            <div class="form-group">
+                <label>Max Periods (N) [Even]:</label>
+                <input type="number" id="scan-n-max" value="40" step="2">
+            </div>
         </div>
     </div>
-    
-    <div class="form-group">
-        <label>Q-Factor Weight [%]:</label>
-        <div class="slider-group">
-            <input type="range" id="slider-q" class="weight-slider" value="25" min="0" max="100" oninput="syncWeight('q', 'slider')">
-            <input type="number" id="num-q" class="weight-number" value="25" min="0" max="100" oninput="syncWeight('q', 'num')">
+
+    <div class="form-grid">
+        <h3 class="section-title">2. Optimization Weights (Must sum to 100%)</h3>
+        <div class="form-group">
+            <label>Peak Transmission Weight [%]:</label>
+            <div class="slider-group">
+                <input type="range" id="slider-trans" class="weight-slider" value="50" min="0" max="100" oninput="syncWeight('trans', 'slider')">
+                <input type="number" id="num-trans" class="weight-number" value="50" min="0" max="100" oninput="syncWeight('trans', 'num')">
+            </div>
+        </div>
+        <div class="form-group">
+            <label>Q-Factor Weight [%]:</label>
+            <div class="slider-group">
+                <input type="range" id="slider-q" class="weight-slider" value="25" min="0" max="100" oninput="syncWeight('q', 'slider')">
+                <input type="number" id="num-q" class="weight-number" value="25" min="0" max="100" oninput="syncWeight('q', 'num')">
+            </div>
+        </div>
+        <div class="form-group">
+            <label>Rejection Ratio Weight [%]:</label>
+            <div class="slider-group">
+                <input type="range" id="slider-rej" class="weight-slider" value="25" min="0" max="100" oninput="syncWeight('rej', 'slider')">
+                <input type="number" id="num-rej" class="weight-number" value="25" min="0" max="100" oninput="syncWeight('rej', 'num')">
+            </div>
+        </div>
+        <div id="weight-feedback" style="grid-column: 1 / -1; font-weight: bold; color: #27ae60; padding: 10px; background-color: #e8f8f5; border-radius: 6px;">
+            Total Weight: 100% — Ready to Simulate!
         </div>
     </div>
-    
-    <div class="form-group">
-        <label>Rejection Ratio Weight [%]:</label>
-        <div class="slider-group">
-            <input type="range" id="slider-rej" class="weight-slider" value="25" min="0" max="100" oninput="syncWeight('rej', 'slider')">
-            <input type="number" id="num-rej" class="weight-number" value="25" min="0" max="100" oninput="syncWeight('rej', 'num')">
-        </div>
-    </div>
-    
-    <div id="weight-feedback" style="grid-column: 1 / -1; font-weight: bold; color: #27ae60; padding: 10px; background-color: #e8f8f5; border-radius: 6px;">
-        Total Weight: 100% — Ready to Simulate!
-    </div>
+
     <button onclick="runDesign()" id="run-btn" style="background-color: #3498db; margin-top: 20px;">Find Optimal Duty Cycle</button>
 </div>
 
@@ -132,7 +152,24 @@
 
 <script>
     let currentCharts = {};
+    let currentMode = 'duty'; // Tracks which tab is active!
 
+    function switchMode(mode) {
+        currentMode = mode;
+        
+        // Hide/Show Tabs
+        document.getElementById('tab-duty').style.display = (mode === 'duty') ? 'block' : 'none';
+        document.getElementById('tab-n').style.display = (mode === 'n') ? 'block' : 'none';
+        
+        // Update Button Styles
+        document.getElementById('btn-tab-duty').className = (mode === 'duty') ? 'tab-btn active' : 'tab-btn';
+        document.getElementById('btn-tab-n').className = (mode === 'n') ? 'tab-btn active' : 'tab-btn';
+        
+        // Update Main Run Button Text
+        document.getElementById('run-btn').innerHTML = (mode === 'duty') ? 'Find Optimal Duty Cycle' : 'Find Optimal N (Periods)';
+    }
+
+    // ... [KEEP YOUR EXISTING syncWeight, validateWeights, calculateSingleLength, and calculateRanges FUNCTIONS HERE] ...
     function syncWeight(metricId, source) {
         const slider = document.getElementById(`slider-${metricId}`);
         const numInput = document.getElementById(`num-${metricId}`);
@@ -140,7 +177,6 @@
         if (source === 'slider') {
             numInput.value = slider.value;
         } else if (source === 'num') {
-            // If the user types a number, enforce the 0-100 limits and update the slider
             let val = parseFloat(numInput.value) || 0;
             if (val > 100) val = 100;
             if (val < 0) val = 0;
@@ -157,7 +193,6 @@
         const total = wTrans + wQ + wRej;
         const feedback = document.getElementById('weight-feedback');
         const runBtn = document.getElementById('run-btn');
-
 
         if (Math.abs(total - 100) < 0.1) { 
             feedback.innerHTML = `Total Weight: ${total}% — Perfect! Ready to Simulate.`;
@@ -196,10 +231,7 @@
         }
 
         const freqHz = freqTHz * 1e12;
-        
-        // Calculate for 40%
         const bounds40 = calculateSingleLength(freqHz, nmm, nee, 0.40);
-        // Calculate for 85%
         const bounds85 = calculateSingleLength(freqHz, nmm, nee, 0.85);
 
         const Lm_min = (bounds40.Lm * 1e6).toFixed(3);
@@ -227,37 +259,61 @@
         const nee = parseFloat(document.getElementById('des-nee').value);
         const am = parseFloat(document.getElementById('des-am').value);
         const ae = parseFloat(document.getElementById('des-ae').value);
-        const N = parseInt(document.getElementById('des-N').value);
         const Lc = parseFloat(document.getElementById('des-Lc').value);
+        
         const weight_trans = parseFloat(document.getElementById('num-trans').value) / 100.0;
         const weight_q = parseFloat(document.getElementById('num-q').value) / 100.0;
         const weight_rej = parseFloat(document.getElementById('num-rej').value) / 100.0;
 
-        if ([f_target, delta, nmm, nee, am, ae, N, Lc].some(isNaN)) { 
+        let payload = {
+            freq: f_target*1e12, nmm: nmm, nee: nee, am: am, ae: ae, Lc: Lc, delta: delta,
+            weight_trans: weight_trans, weight_q: weight_q, weight_rej: weight_rej
+        };
+
+        let targetURL = '';
+        let xAxisTitle = '';
+
+        // MODE 1: Duty Cycle Sweep
+        if (currentMode === 'duty') {
+            const N = parseInt(document.getElementById('des-N-fixed').value);
+            if (!Number.isInteger(N) || N <= 0 || N % 2 !== 0) {
+                showError("The number of Bragg periods (N) must be a positive, EVEN whole number!");
+                return;
+            }
+            payload.N = N;
+            payload.duty_min = 0.40;
+            payload.duty_max = 0.85;
+            targetURL = '/api/sweep_duty'; 
+            xAxisTitle = 'Metal Length (L_m)';
+        } 
+        // MODE 2: N Sweep
+        else {
+            const fixed_duty = parseFloat(document.getElementById('des-duty-fixed').value) / 100.0;
+            const n_min = parseInt(document.getElementById('scan-n-min').value);
+            const n_max = parseInt(document.getElementById('scan-n-max').value);
+            
+            if (isNaN(fixed_duty) || !Number.isInteger(n_min) || !Number.isInteger(n_max)) {
+                showError("Please fill out all Period Scanning fields.");
+                return;
+            }
+            payload.duty_cycle = fixed_duty;
+            payload.n_min = n_min;
+            payload.n_max = n_max;
+            targetURL = '/api/sweep_n'; 
+            xAxisTitle = 'Number of Periods (N)';
+        }
+
+        if ([f_target, delta, nmm, nee, am, ae, Lc].some(isNaN)) { 
             showError("Validation Error: Please fill out all required physics parameters."); 
             return; 
-        }
-        if (!Number.isInteger(N) || N <= 0 || N % 2 !== 0) {
-            showError("The number of Bragg periods (N) must be a positive, EVEN whole number!");
-            return;
-        }
-        if (f_target <= 0) {
-            showError("Target frequency must be greater than zero.");
-            return;
         }
 
         runBtn.disabled = true;
         runBtn.innerHTML = `Running TMM Engine... Please Wait`;
         runBtn.style.backgroundColor = "#95a5a6";
 
-        const payload = {
-            freq: f_target*1e12, nmm: nmm, nee: nee, am: am, ae: ae, N: N, Lc: Lc, delta: delta,
-            duty_min: 0.40, duty_max: 0.85, 
-            weight_trans: weight_trans, weight_q: weight_q, weight_rej: weight_rej
-        };
-
         try {
-            const response = await fetch('/api/design', {
+            const response = await fetch(targetURL, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(payload)
@@ -267,32 +323,45 @@
 
             if (response.ok) {
                 const results = data.data;
-                const optLm_um = (results.optimal_Lm * 1e6).toFixed(3);
-                const optLe_um = (results.optimal_Le * 1e6).toFixed(3);
-                const optDuty = (results.optimal_D * 100).toFixed(1);
-                const optQ = results.optimal_q.toFixed(1);
-                const optRej = results.optimal_rej.toFixed(2);
-                const optSbWidth_GHz = (results.optimal_sb_width / 1e9).toFixed(2);
                 const best_idx = results.best_idx;
                 
-                document.getElementById('optimal-values-display').innerHTML = 
-                    `<strong>Best Performance Found!</strong><br>
-                    <span style="color: #2c3e50; font-size: 16px;">
-                    Optimal Duty Cycle: <b>${optDuty}%</b> | L_m: <b>${optLm_um} μm</b> | L_e: <b>${optLe_um} μm</b><br>
-                    Q-Factor: <b>${optQ}</b> | Rejection Ratio: <b>${optRej}</b> | Stopband Width: <b>${optSbWidth_GHz} GHz</b>
-                    </span>`;
+                // Display specific text depending on the mode!
+                if (currentMode === 'duty') {
+                    const optLm_um = (results.optimal_Lm * 1e6).toFixed(3);
+                    const optLe_um = (results.optimal_Le * 1e6).toFixed(3);
+                    const optDuty = (results.optimal_D * 100).toFixed(1);
+                    
+                    document.getElementById('optimal-values-display').innerHTML = 
+                        `<strong>Best Duty Cycle Found!</strong><br>
+                        <span style="color: #2c3e50; font-size: 16px;">
+                        Optimal Duty Cycle: <b>${optDuty}%</b> | L_m: <b>${optLm_um} μm</b> | L_e: <b>${optLe_um} μm</b><br>
+                        Q-Factor: <b>${results.optimal_q.toFixed(1)}</b> | Rejection Ratio: <b>${results.optimal_rej.toFixed(2)}</b>
+                        </span>`;
+                } else {
+                    document.getElementById('optimal-values-display').innerHTML = 
+                        `<strong>Best Number of Periods Found!</strong><br>
+                        <span style="color: #2c3e50; font-size: 16px;">
+                        Optimal N: <b>${results.optimal_N} Periods</b><br>
+                        Q-Factor: <b>${results.optimal_q.toFixed(1)}</b> | Rejection Ratio: <b>${results.optimal_rej.toFixed(2)}</b>
+                        </span>`;
+                    
+                    // Sneaky trick: auto-fill the fixed N box in the other tab with their new optimal N!
+                    document.getElementById('des-N-fixed').value = results.optimal_N; 
+                }
 
-                if (results.Lm_array && results.peak_transmissions && results.q_factors && results.rejections) {
-                    const labels = results.Lm_array.map(val => (val * 1e6).toFixed(3) + ' μm');
-                    // 1. Peak Transmission 
-                    drawChart('transmissionChart', labels, results.peak_transmissions, 'Transmission Spike (a.u.)', '#2980b9', 'rgba(41, 128, 185, 0.1)', best_idx);
+                // Prepare X-axis arrays
+                let labels = [];
+                if (currentMode === 'duty' && results.Lm_array) {
+                    labels = results.Lm_array.map(val => (val * 1e6).toFixed(3) + ' μm');
+                } else if (currentMode === 'n' && results.n_array) {
+                    labels = results.n_array.map(val => val.toString());
+                }
 
-                    // 2. Q-Factor 
-                    drawChart('qFactorChart', labels, results.q_factors, 'Quality Factor (Q)', '#e74c3c', 'rgba(231, 76, 60, 0.1)', best_idx);
-
-                    // 3. Rejection Ratio 
-                    drawChart('rejectionChart', labels, results.rejections, 'Rejection Ratio', '#8e44ad', 'rgba(142, 68, 173, 0.1)', best_idx);
-                
+                if (labels.length > 0 && results.peak_transmissions) {
+                    // Passed xAxisTitle to the drawChart function!
+                    drawChart('transmissionChart', labels, results.peak_transmissions, 'Transmission Spike (a.u.)', '#2980b9', 'rgba(41, 128, 185, 0.1)', best_idx, xAxisTitle);
+                    drawChart('qFactorChart', labels, results.q_factors, 'Quality Factor (Q)', '#e74c3c', 'rgba(231, 76, 60, 0.1)', best_idx, xAxisTitle);
+                    drawChart('rejectionChart', labels, results.rejections, 'Rejection Ratio', '#8e44ad', 'rgba(142, 68, 173, 0.1)', best_idx, xAxisTitle);
                 } else {
                     console.warn("Skipping chart: Missing data arrays in response.");
                 }
@@ -305,21 +374,18 @@
             showError("Connection Failed.");
         } finally {
             runBtn.disabled = false;
-            runBtn.innerHTML = "Find Optimal Duty Cycle";
+            runBtn.innerHTML = currentMode === 'duty' ? "Find Optimal Duty Cycle" : "Find Optimal N";
             runBtn.style.backgroundColor = "#3498db";
         }
     }
 
-    function drawChart(canvasId, x_data, y_data, y_title, lineColor, fillColor, best_idx) {
+    // NOTICE: Added x_title as the very last argument!
+    function drawChart(canvasId, x_data, y_data, y_title, lineColor, fillColor, best_idx, x_title) {
         const chartCard = document.getElementById('chart-card');
-        chartCard.style.display = 'block'; // Un-hide the container holding all the charts
+        chartCard.style.display = 'block'; 
 
         const ctx = document.getElementById(canvasId).getContext('2d');
-        
-        // Check if THIS specific chart exists, and destroy it so they don't overlap
-        if (currentCharts[canvasId]) { 
-            currentCharts[canvasId].destroy(); 
-        }
+        if (currentCharts[canvasId]) { currentCharts[canvasId].destroy(); }
 
         const pointRadii = y_data.map((_, index) => index === best_idx ? 8 : 0);
         const pointStyles = y_data.map((_, index) => index === best_idx ? 'star' : 'circle');
@@ -348,12 +414,11 @@
             },
             options: {
                 responsive: true,
-                // maintainAspectRatio: false is CRUCIAL here so the stacked charts don't get squashed!
                 maintainAspectRatio: false, 
                 interaction: { intersect: false, mode: 'index' },
                 scales: {
                     x: { 
-                        title: { display: true, text: 'Metal Length (L_m)', font: {size: 14, weight: 'bold'} }, 
+                        title: { display: true, text: x_title, font: {size: 14, weight: 'bold'} }, 
                         ticks: {maxTicksLimit: 10} 
                     },
                     y: { 
@@ -363,7 +428,6 @@
                 }
             }
         });
-
         chartCard.scrollIntoView({ behavior: 'smooth' });
     }
 

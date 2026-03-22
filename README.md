@@ -166,3 +166,26 @@ $$T_{power} = \frac{|\det(T_{QCL})|^2}{|A|^2}$$
 $$R = \frac{|C|^2}{|A|^2}$$
 
 Consequently, $\delta$ dictates the phase of the output wave but leaves the measurable optical power completely unchanged.
+
+Therefore, the only parameters left are $L_m$, $L_e$ and $N$ and the former two are basically one thing since they have certain connection between each other and can be assessed using one single parameter: duty cycle $\sigma$
+
+Moreover, I introduce 3 factors into assessing the quality of our laser:
+
+1. Peak Transmission Power ($T_{peak}$)The absolute maximum amplitude of the defect mode spike. Overcoming material absorption to maintain a viable signal output is paramount.
+2. Quality Factor ($Q$)This defines the sharpness and precision of the bandpass filter. It is calculated by dividing the central target frequency by the Full Width at Half Maximum (FWHM) of the transmission peak:
+   
+$$Q = \frac{f_{br}}{\Delta f_{FWHM}}$$
+
+3. Stopband Rejection RatioThis measures the contrast between the desired signal (the defect peak) and the noise floor of the filter (the stopband). However, measuring this algorithmically presents a physical challenge: due to the finite nature of the cavity and the heavy material losses, the outer edges of the stopband are heavily distorted by Fabry-Perot ripples. Blindly searching for valleys can result in measuring these ripples instead of the true noise floor.To bypass this, we utilize the analytical physics of a Bragg grating to construct a "search window". The theoretical width of the stopband ($\Delta f_{sb}$) for an infinite grating is defined as:
+
+$$\Delta f_{sb} = f_{br} \left( \frac{2|n_{mm} - n_{ee}|}{\pi n_{eff}} \right) \sin(\pi \sigma)$$
+
+By calculating this theoretical width dynamically for every duty cycle, we establish strict frequency boundaries (a "fence") around our target resonance:
+
+$$f_{left} = f_{br} - \frac{\Delta f_{sb}}{2} \\ f_{right} = f_{br} + \frac{\Delta f_{sb}}{2}$$
+
+We then isolate the transmission data strictly within these boundaries and locate the absolute minimum transmission value ($T_{floor}$). This guarantees we are measuring the true darkness of the stopband, completely ignoring the surrounding Fabry-Perot ripples. The rejection ratio is then calculated as:
+
+$$\text{Rejection Ratio} = \frac{T_{peak}}{T_{floor}}$$
+
+Later, I'll assign each factor a weight, determine how much influence they ultimately have on the result.
