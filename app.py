@@ -2,7 +2,7 @@ from flask import Flask, render_template, request, jsonify
 import numpy as np
 from engineer_bragg_grating import engineer_bragg_grating
 from bragg_grating_tmm import bragg_grating_tmm
-from engineer_delta import optimize_delta
+from optimize_duty_cycle import optimize_duty_cycle
 
 app = Flask(__name__)
 
@@ -10,110 +10,94 @@ app = Flask(__name__)
 def simulate_page():
     return render_template('simulate.html', active_page='simulate')
 
-
-@app.route('/optimize')
-def optimize_page():
-    return render_template('optimize.html', active_page='optimize')
-
-
 @app.route('/design')
 def design_page():
     return render_template('design.html', active_page='design')
 
-
 @app.route('/api/simulate', methods=['POST'])
 def run_simulation():
-    data = request.json
-    
     try:
-        f = np.linspace(data['f_start'], data['f_stop'], data['points'])
+        # Just in case the request is completely empty, default to an empty dictionary
+        data = request.json or {}
+        
+        # Safely extract with defaults to prevent any unexpected crashes, love!
+        f_start = float(data.get('f_start', 0))
+        f_stop = float(data.get('f_stop', 0))
+        points = int(data.get('points', 1000))
+        
+        Lm = float(data.get('Lm', 0))
+        Le = float(data.get('Le', 0))
+        nmm = float(data.get('nmm', 0))
+        nee = float(data.get('nee', 0))
+        am = float(data.get('am', 0))
+        ae = float(data.get('ae', 0))
+        N = int(data.get('N', 0))
+        Lc = float(data.get('Lc', 0))
+        pishift = bool(data.get('pishift', False))
+        Lpi = float(data.get('Lpi', 0))
+        delta = float(data.get('delta', 0))
+        
+        f = np.linspace(f_start, f_stop, points)
         
         ref, trans, stopband = bragg_grating_tmm(
-            f, 
-            data['Lm'], data['Le'], data['nmm'], data['nee'], 
-            data['am'], data['ae'], int(data['N']), data['Lc'], 
-            data['pishift'], data['Lpi'], data['delta']
+            f, Lm, Le, nmm, nee, am, ae, N, Lc, pishift, Lpi, delta
         )
         
+
         return jsonify({
             "status": "success",
-            "frequencies": (f / 1e12).tolist(), # Convert back to THz 
-            "transmission": trans.tolist()
+            "data": {
+                "frequencies": (f / 1e12).tolist(), 
+                "transmission": trans.tolist()
+            }
         }), 200
 
     except Exception as e:
-        return jsonify({"status": "error", "message": str(e)}), 400
-
-
-@app.route('/api/optimize', methods=['POST'])
-def run_optimization():
-    data = request.json
-    
-    try:
-        sweep_array = np.linspace(data['sweep_start'], data['sweep_stop'], data['sweep_points'])
-        static = data['static_params']
-        params = {
-            'Lm': static.get('Lm'),
-            'Le': static.get('Le'),
-            'nmm': static.get('nmm'),
-            'nee': static.get('nee'),
-            'am': static.get('am'),
-            'ae': static.get('ae'),
-            'N': static.get('N'),
-            'Lc': static.get('Lc'),
-            'Lpi': static.get('Lpi')
-        }
-        
-
-        sweep_param_name = data['sweep_param']
-        params[sweep_param_name] = sweep_array
-        
-        error_array, optimal_value = engineer_bragg_grating(
-            data['f_target'],
-            params['Lm'], params['Le'], params['nmm'], params['nee'],
-            params['am'], params['ae'], params['N'], params['Lc'],
-            True, params['Lpi'], data['delta']
-        )
-        
-        return jsonify({
-            "status": "success",
-            "optimal_value": float(optimal_value),
-            "sweep_array": sweep_array.tolist(),
-            "error_array": error_array.tolist()
-        }), 200
-
-    except Exception as e:
+        print(f"Oh eck, a simulation error: {e}")
         return jsonify({"status": "error", "message": str(e)}), 400
 
 
 @app.route('/api/design', methods=['POST'])
 def run_design():
-    data = request.json
-    
     try:
-        delta_array = np.linspace(data['delta_start'], data['delta_stop'], data['points'])
-        f_target = float(data['f_target'])
-        Lm = float(data['Lm'])
-        Le = float(data['Le'])
-        Lpi = float(data['Lpi'])
-        nmm = float(data['nmm'])
-        nee = float(data['nee'])
-        am = float(data['am'])
-        ae = float(data['ae'])
-        N = int(data['N'])
-        Lc = float(data['Lc'])
-        error_array, optimal_delta = optimize_delta(
-            f_target, delta_array, Lm, Le, nmm, nee, am, ae, N, Lc, Lpi
+        data = request.json or {}
+        
+        f_target_THz = float(data.get('freq', 0))
+        f_target_Hz = f_target_THz * 1e12 
+        
+        delta = float(data.get('delta', 0))
+        nmm = float(data.get('nmm', 0))
+        nee = float(data.get('nee', 0))
+        am = float(data.get('am', 0))
+        ae = float(data.get('ae', 0))
+        N = int(data.get('N', 0))
+        Lc = float(data.get('Lc', 0))
+        
+        duty_min = float(data.get('duty_min', 0.40))
+        duty_max = float(data.get('duty_max', 0.85))
+        duty_cycle_range = (duty_min, duty_max)
+        
+        Lm_array, Le_array, peak_transmissions, optimal_D, optimal_Lm, optimal_Le = optimize_duty_cycle(
+            f_target_Hz, nmm, nee, am, ae, N, Lc, duty_cycle_range, delta
         )
         
-        return jsonify({
-            "status": "success",
-            "optimal_delta": float(optimal_delta),
-            "delta_array": delta_array.tolist(),
-            "error_array": error_array.tolist()
-        }), 200
-
+        lm_min_um = np.min(Lm_array) * 1e6
+        lm_max_um = np.max(Lm_array) * 1e6
+        le_min_um = np.min(Le_array) * 1e6
+        le_max_um = np.max(Le_array) * 1e6
+        
+        results = {
+            "Lm_array": Lm_array.tolist(),
+            "optimal_Lm": f"{optimal_Lm * 1e6:.3f}",
+            "optimal_Le": f"{optimal_Le * 1e6:.3f}",
+            "optimal_D": f"{optimal_D:.3f}",
+            "peak_transmissions": peak_transmissions.tolist()
+        }
+        
+        return jsonify({"status": "success", "data": results}), 200
+        
     except Exception as e:
+        print(f"Oh eck, a design error occurred: {e}")
         return jsonify({"status": "error", "message": str(e)}), 400
 
 if __name__ == '__main__':

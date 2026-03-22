@@ -7,86 +7,118 @@
     .info-box { background-color: #eaf2f8; color: #2980b9; padding: 15px; border-radius: 6px; border-left: 5px solid #2980b9; margin-bottom: 20px; font-weight: bold; }
     #error-box { display: none; background-color: #f8d7da; color: #721c24; padding: 15px; border-radius: 6px; border-left: 5px solid #f5c6cb; margin-bottom: 20px; font-weight: bold; }
     .readonly-input { background-color: #e9ecef; cursor: not-allowed; font-weight: bold; color: #2c3e50; }
+    .highlight-result { font-size: 20px; color: #2980b9; margin-top: 10px; }
 </style>
 
 <div class="card" style="border-top-color: #2980b9;">
-    <h2>Single-Mode QCL Designer</h2>
-    <p class="subtitle">Physics-driven distributed feedback (DFB) laser design via \(\delta\) deviation tuning.</p>
+    <h2>THz QCL Bragg Grating Filter Designer</h2>
+    <p class="subtitle">Sweep Length of metal and etch parts to optimize filter performance.</p>
     
     <div class="info-box">
-        Workflow: The engine auto-calculates the base grating periods and the \(\pi\)-shift defect (\(L_{\pi} = \Lambda / 2\)). It then runs a high-precision 1D sweep on the \(\delta\) parameter to hit your target frequency.
+        Workflow: Set your target and materials. The engine will sweep the duty cycle (40% - 85%) automatically, calculating the corresponding L_m and L_e for each step. 
     </div>
 
     <div id="error-box"></div>
 
     <div class="form-grid">
-        <h3 class="section-title">1. Target & Material Specifications</h3>
-        <div class="form-group"><label>Target Freq \(f_{target}\) [THz]:</label><input type="number" id="des-freq" placeholder="e.g., 2.5" step="0.1" oninput="calculateBragg()"></div>
-        <div class="form-group"><label>Duty Cycle (Metal Ratio) [%]:</label><input type="number" id="des-duty" value="50" step="1" oninput="calculateBragg()"></div>
-        
-        <div class="form-group"><label>Metal Refractive Index \(n_{mm}\):</label><input type="number" id="des-nmm" placeholder="e.g., 3.67" step="0.01" oninput="calculateBragg()"></div>
-        <div class="form-group"><label>Etch Refractive Index \(n_{ee}\):</label><input type="number" id="des-nee" placeholder="e.g., 3.07" step="0.01" oninput="calculateBragg()"></div>
-        <div class="form-group"><label>Metal Absorption \(\alpha_m\) [m\(^{-1}\)]:</label><input type="number" id="des-am" placeholder="e.g., 750"></div>
-        <div class="form-group"><label>Etch Absorption \(\alpha_e\) [m\(^{-1}\)]:</label><input type="number" id="des-ae" placeholder="e.g., 3812"></div>
-        <div class="form-group"><label>Bragg Periods \(N\) (Even):</label><input type="number" id="des-N" placeholder="e.g., 14"></div>
-        <div class="form-group"><label>Chip Length \(L_c\) [m]:</label><input type="number" id="des-Lc" placeholder="e.g., 2e-3"></div>
-
-        <h3 class="section-title">2. Auto-Calculated Base Structure</h3>
-        <div class="form-group"><label>Effective Refractive Index \(n_{eff}\):</label><input type="text" id="calc-neff" class="readonly-input" readonly></div>
-        <div class="form-group"><label>Grating Period \(\Lambda\) [m]:</label><input type="text" id="calc-period" class="readonly-input" readonly></div>
-        <div class="form-group"><label>Auto Metal Length \(L_m\) [m]:</label><input type="text" id="calc-Lm" class="readonly-input" readonly></div>
-        <div class="form-group"><label>Auto Etch Length \(L_e\) [m]:</label><input type="text" id="calc-Le" class="readonly-input" readonly></div>
-        
-        <div class="form-group" style="grid-column: 1 / -1;"><label>Auto \(\pi\)-Shift Length \(L_{\pi}\) (\(\Lambda / 2\)) [m]:</label><input type="text" id="calc-Lpi" class="readonly-input" readonly></div>
-
-        <h3 class="section-title">3. Deviation Tuning (\(\delta\))</h3>
-        <div class="form-group"><label>\(\delta\) Start [m]:</label><input type="number" id="sweep-delta-start" placeholder="e.g., -2e-6"></div>
-        <div class="form-group"><label>\(\delta\) Stop [m]:</label><input type="number" id="sweep-delta-stop" placeholder="e.g., 2e-6"></div>
-        <div class="form-group" style="grid-column: 1 / -1;"><label>Number of Points:</label><input type="number" id="sweep-points" placeholder="e.g., 100"></div>
+    <h3 class="section-title">1. Target & Material Specifications</h3>
+    <div class="form-group">
+        <label>Target Freq (f_target) [THz]:</label>
+        <input type="number" id="des-freq" placeholder="e.g., 2.0" step="0.1" oninput="calculateRanges()">
+    </div>
+    <div class="form-group">
+        <label>Phase Deviation (delta) [m]:</label>
+        <input type="number" id="des-delta" placeholder="e.g., 0.0" step="1e-6">
+    </div>
+    
+    <div class="form-group">
+        <label>Metal Refractive Index (n_mm):</label>
+        <input type="number" id="des-nmm" placeholder="e.g., 3.67" step="0.01" oninput="calculateRanges()">
+    </div>
+    <div class="form-group">
+        <label>Etch Refractive Index (n_ee):</label>
+        <input type="number" id="des-nee" placeholder="e.g., 3.07" step="0.01" oninput="calculateRanges()">
+    </div>
+    <div class="form-group">
+        <label>Metal Absorption (a_m) [m^-1]:</label>
+        <input type="number" id="des-am" placeholder="e.g., 750">
+    </div>
+    <div class="form-group">
+        <label>Etch Absorption (a_e) [m^-1]:</label>
+        <input type="number" id="des-ae" placeholder="e.g., 3812">
+    </div>
+    <div class="form-group">
+        <label>Bragg Periods (N) (Even Integer):</label>
+        <input type="number" id="des-N" placeholder="e.g., 14" step="2">
+    </div>
+    <div class="form-group">
+        <label>Chip Length (L_c) [m]:</label>
+        <input type="number" id="des-Lc" placeholder="e.g., 2e-3">
     </div>
 
-    <button onclick="runDesign()" id="run-btn" style="background-color: #3498db;">Find Optimal \(\delta\)</button>
+    <h3 class="section-title">2. Calculated Sweep Boundaries (40% - 85% Duty Cycle)</h3>
+    <div class="form-group">
+        <label>L_m Search Range [um]:</label>
+        <input type="text" id="calc-Lm-range" class="readonly-input" readonly>
+    </div>
+    <div class="form-group">
+        <label>L_e Search Range [um]:</label>
+        <input type="text" id="calc-Le-range" class="readonly-input" readonly>
+    </div>
+</div>
+
+    <button onclick="runDesign()" id="run-btn" style="background-color: #3498db; margin-top: 20px;">Find Optimal Duty Cycle</button>
 </div>
 
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
 <div class="card" id="chart-card" style="display: none; margin-top: 30px; border-top-color: #2980b9;">
-    <h3 id="result-text" style="text-align: center; color: #2980b9;"></h3>
+    <h3 id="result-text" style="text-align: center; color: #2980b9;">Optimization Complete</h3>
+    <div id="optimal-values-display" style="text-align: center; margin-bottom: 20px;" class="highlight-result"></div>
     <canvas id="designChart"></canvas>
 </div>
 
 <script>
     let currentChart = null;
 
-    function calculateBragg() {
-        const freqTHz = parseFloat(document.getElementById('des-freq').value);
-        const dutyCycle = parseFloat(document.getElementById('des-duty').value) / 100.0;
-        const n_metal = parseFloat(document.getElementById('des-nmm').value);
-        const n_etch = parseFloat(document.getElementById('des-nee').value);
+    function calculateSingleLength(freqHz, nmm, nee, dutyCycle) {
+        const c = 299792458;
+        const n_eff = (dutyCycle * nmm) + ((1.0 - dutyCycle) * nee);
+        const period = c / (2.0 * n_eff * freqHz);
+        return {
+            Lm: period * dutyCycle,
+            Le: period * (1.0 - dutyCycle)
+        };
+    }
 
-        if (isNaN(freqTHz) || freqTHz <= 0 || isNaN(dutyCycle) || isNaN(n_metal) || isNaN(n_etch)) {
-            document.getElementById('calc-neff').value = ''; document.getElementById('calc-period').value = '';
-            document.getElementById('calc-Lm').value = ''; document.getElementById('calc-Le').value = '';
-            document.getElementById('calc-Lpi').value = '';
+    function calculateRanges() {
+        const freqTHz = parseFloat(document.getElementById('des-freq').value);
+        const nmm = parseFloat(document.getElementById('des-nmm').value);
+        const nee = parseFloat(document.getElementById('des-nee').value);
+
+        if (isNaN(freqTHz) || freqTHz <= 0 || isNaN(nmm) || isNaN(nee)) {
+            document.getElementById('calc-Lm-range').value = 'Awaiting input...';
+            document.getElementById('calc-Le-range').value = 'Awaiting input...';
             return;
         }
 
-        const n_eff = (n_metal * dutyCycle) + (n_etch * (1.0 - dutyCycle));
-        const c = 299792458; 
         const freqHz = freqTHz * 1e12;
-        const period = c / (2.0 * n_eff * freqHz);
-        const Lm = period * dutyCycle;
-        const Le = period * (1.0 - dutyCycle);
-        const Lpi = period / 2.0; 
+        
+        // Calculate for 40%
+        const bounds40 = calculateSingleLength(freqHz, nmm, nee, 0.40);
+        // Calculate for 85%
+        const bounds85 = calculateSingleLength(freqHz, nmm, nee, 0.85);
 
-        document.getElementById('calc-neff').value = n_eff.toFixed(4);
-        document.getElementById('calc-period').value = period.toExponential(4);
-        document.getElementById('calc-Lm').value = Lm.toExponential(4);
-        document.getElementById('calc-Le').value = Le.toExponential(4);
-        document.getElementById('calc-Lpi').value = Lpi.toExponential(4);
+        const Lm_min = (bounds40.Lm * 1e6).toFixed(3);
+        const Lm_max = (bounds85.Lm * 1e6).toFixed(3);
+        const Le_min = (bounds85.Le * 1e6).toFixed(3); 
+        const Le_max = (bounds40.Le * 1e6).toFixed(3); 
+
+        document.getElementById('calc-Lm-range').value = `${Lm_min} to ${Lm_max}`;
+        document.getElementById('calc-Le-range').value = `${Le_min} to ${Le_max}`;
     }
     
-    window.onload = calculateBragg;
+    window.onload = calculateRanges;
 
     async function runDesign() {
         const errorBox = document.getElementById('error-box');
@@ -96,10 +128,8 @@
         errorBox.style.display = 'none'; 
         chartCard.style.display = 'none';
 
-        const f_target = parseFloat(document.getElementById('des-freq').value) * 1e12; 
-        const Lm = parseFloat(document.getElementById('calc-Lm').value);
-        const Le = parseFloat(document.getElementById('calc-Le').value);
-        const Lpi = parseFloat(document.getElementById('calc-Lpi').value);
+        const f_target_raw = parseFloat(document.getElementById('des-freq').value); 
+        const delta = parseFloat(document.getElementById('des-delta').value);
         const nmm = parseFloat(document.getElementById('des-nmm').value);
         const nee = parseFloat(document.getElementById('des-nee').value);
         const am = parseFloat(document.getElementById('des-am').value);
@@ -107,22 +137,26 @@
         const N = parseInt(document.getElementById('des-N').value);
         const Lc = parseFloat(document.getElementById('des-Lc').value);
 
-        const delta_start = parseFloat(document.getElementById('sweep-delta-start').value);
-        const delta_stop = parseFloat(document.getElementById('sweep-delta-stop').value);
-        const points = parseInt(document.getElementById('sweep-points').value);
-
-        if (isNaN(Lm) || isNaN(Le) || isNaN(Lpi)) { showError("Validation Error: Please fill out the Target section to calculate the base physics first."); return; }
-        if ([am, ae, N, Lc, delta_start, delta_stop, points].some(isNaN)) { showError("Validation Error: All sweep parameters must be specified."); return; }
-        if (delta_start >= delta_stop) { showError("Validation Error: Sweep start must be less than sweep stop."); return; }
-        if (points < 2 || points > 500) { showError("Validation Error: Sweep points must be bounded between 2 and 500."); return; }
+        if ([f_target_raw, delta, nmm, nee, am, ae, N, Lc].some(isNaN)) { 
+            showError("Validation Error: Please fill out all required physics parameters."); 
+            return; 
+        }
+        if (!Number.isInteger(N) || N <= 0 || N % 2 !== 0) {
+            showError("The number of Bragg periods (N) must be a positive, EVEN whole number!");
+            return;
+        }
+        if (f_target_raw <= 0) {
+            showError("Target frequency must be greater than zero.");
+            return;
+        }
 
         runBtn.disabled = true;
-        runBtn.innerHTML = `Calculating \(\delta\) Sweep... Please Wait`;
+        runBtn.innerHTML = `Running TMM Engine... Please Wait`;
         runBtn.style.backgroundColor = "#95a5a6";
 
         const payload = {
-            f_target: f_target, Lm: Lm, Le: Le, Lpi: Lpi, nmm: nmm, nee: nee, am: am, ae: ae, N: N, Lc: Lc,
-            delta_start: delta_start, delta_stop: delta_stop, points: points
+            freq: f_target_raw, nmm: nmm, nee: nee, am: am, ae: ae, N: N, Lc: Lc, delta: delta,
+            duty_min: 0.40, duty_max: 0.85
         };
 
         try {
@@ -135,19 +169,33 @@
             const data = await response.json();
 
             if (response.ok) {
-                document.getElementById('result-text').innerHTML = `Optimal \(\delta\) Found: <span style="font-size: 24px;">${data.optimal_delta.toExponential(4)} m</span>`;
-                drawChart(data.delta_array, data.error_array);
+                const results = data.data;
+                const optLm_um = results.optimal_Lm; 
+                const optLe_um = results.optimal_Le; 
+                const optDuty = (parseFloat(results.optimal_D) * 100).toFixed(1);
+                
+                document.getElementById('optimal-values-display').innerHTML = 
+                    `<strong>Best Performance Found!</strong><br>
+                    Optimal Duty Cycle: ${optDuty}% <br>
+                    Optimal L_m: ${optLm_um} μm | Optimal L_e: ${optLe_um} μm`;
+
+                if (results.Lm_array && results.peak_transmissions) {
+                    const labels = results.Lm_array.map(val => (val * 1e6).toFixed(3) + ' μm');
+                    drawChart(labels, results.peak_transmissions);
+                } else {
+                    console.warn("Skipping chart: Lm_array or peak_transmissions missing from server response.");
+                }
+                
                 if (window.MathJax) { MathJax.typesetPromise(); }
             } else {
                 showError("Server Error: " + data.message);
             }
         } catch (error) {
-            showError("Connection Failed: Ensure the Flask server is running, chuck.");
+            showError("Connection Failed.");
         } finally {
             runBtn.disabled = false;
-            runBtn.innerHTML = "Find Optimal \\(\\delta\\)";
+            runBtn.innerHTML = "Find Optimal Duty Cycle";
             runBtn.style.backgroundColor = "#3498db";
-            if (window.MathJax) { MathJax.typesetPromise(); }
         }
     }
 
@@ -163,14 +211,13 @@
             data: {
                 labels: x_data, 
                 datasets: [{
-                    label: 'Frequency Error (Hz)',
+                    label: 'Peak Transmission Power (a.u.)',
                     data: y_data,
                     borderColor: '#2980b9',
-                    backgroundColor: 'rgba(41, 128, 185, 0.1)',
-                    borderWidth: 2,
-                    pointRadius: 3,
-                    pointBackgroundColor: '#2980b9',
-                    tension: 0.2,
+                    backgroundColor: 'rgba(60, 126, 231, 0.1)',
+                    borderWidth: 3,
+                    pointRadius: 0,
+                    tension: 0.3,
                     fill: true
                 }]
             },
@@ -178,8 +225,8 @@
                 responsive: true,
                 interaction: { intersect: false, mode: 'index' },
                 scales: {
-                    x: { title: { display: true, text: 'Deviation Delta (m)', font: {size: 14, weight: 'bold'} } },
-                    y: { title: { display: true, text: 'Frequency Error (Hz)', font: {size: 14, weight: 'bold'} }, beginAtZero: true }
+                    x: { title: { display: true, text: 'Metal Length (L_m)', font: {size: 14, weight: 'bold'} }, ticks: {maxTicksLimit: 10} },
+                    y: { title: { display: true, text: 'Transmission Spike Amplitude', font: {size: 14, weight: 'bold'} }, beginAtZero: true }
                 }
             }
         });

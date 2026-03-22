@@ -10,7 +10,7 @@
 
 <div class="card">
     <h2>Direct Spectrum Simulation</h2>
-    <p class="subtitle">Calculate the transmission spectrum from known physical dimensions.</p>
+    <p class="subtitle">Calculate the transmission spectrum from known physical parameters.</p>
     
     <div id="error-box"></div>
 
@@ -22,14 +22,14 @@
         <div></div>
 
         <h3 class="section-title">Physical Parameters</h3>
-        <div class="form-group"><label>Metal Length L_m [m]:</label><input type="number" id="sim-Lm" placeholder="e.g., 12.93e-6"></div>
-        <div class="form-group"><label>Etch Length L_e [m]:</label><input type="number" id="sim-Le" placeholder="e.g., 3.11e-6"></div>
-        <div class="form-group"><label>Metal Refractive Index n_mm:</label><input type="number" id="sim-nmm" placeholder="e.g., 3.67" step="0.01"></div>
-        <div class="form-group"><label>Etch Refractive Index n_ee:</label><input type="number" id="sim-nee" placeholder="e.g., 3.07" step="0.01"></div>
-        <div class="form-group"><label>Metal Absorption a_m [m^-1]:</label><input type="number" id="sim-am" placeholder="e.g., 750"></div>
-        <div class="form-group"><label>Etch Absorption a_e [m^-1]:</label><input type="number" id="sim-ae" placeholder="e.g., 3812"></div>
+        <div class="form-group"><label>Metal Length (L_m) [m]:</label><input type="number" id="sim-Lm" placeholder="e.g., 12.93e-6"></div>
+        <div class="form-group"><label>Etch Length (L_e) [m]:</label><input type="number" id="sim-Le" placeholder="e.g., 3.11e-6"></div>
+        <div class="form-group"><label>Metal Refractive Index (n_mm):</label><input type="number" id="sim-nmm" placeholder="e.g., 3.67" step="0.01"></div>
+        <div class="form-group"><label>Etch Refractive Index (n_ee):</label><input type="number" id="sim-nee" placeholder="e.g., 3.07" step="0.01"></div>
+        <div class="form-group"><label>Metal Absorption (a_m) [m^-1]:</label><input type="number" id="sim-am" placeholder="e.g., 750"></div>
+        <div class="form-group"><label>Etch Absorption (a_e) [m^-1]:</label><input type="number" id="sim-ae" placeholder="e.g., 3812"></div>
         <div class="form-group"><label>Bragg Periods N (Even Integer):</label><input type="number" id="sim-N" placeholder="e.g., 14" step="2"></div>
-        <div class="form-group"><label>Chip Length L_c [m]:</label><input type="number" id="sim-Lc" placeholder="e.g., 2e-3"></div>
+        <div class="form-group"><label>Chip Length (L_c) [m]:</label><input type="number" id="sim-Lc" placeholder="e.g., 2e-3"></div>
 
         <h3 class="section-title">Phase Shift</h3>
         <div class="form-group" style="grid-column: 1 / -1;">
@@ -40,7 +40,7 @@
         </div>
         
         <div id="pi-params" class="form-grid" style="grid-column: 1 / -1; margin: 0; display: none;">
-            <div class="form-group"><label>Pi-Shift Length L_pi [m]:</label><input type="number" id="sim-Lpi" placeholder="e.g., 6.22e-6"></div>
+            <div class="form-group"><label>Pi-Shift Length (L_pi) [m]:</label><input type="number" id="sim-Lpi" placeholder="e.g., 6.22e-6"></div>
             <div class="form-group"><label>Deviation Delta [m]:</label><input type="number" id="sim-delta" placeholder="e.g., 0.0"></div>
         </div>
     </div>
@@ -60,14 +60,14 @@
         document.getElementById('pi-params').style.display = isTicked ? 'grid' : 'none';
     }
     
-    // The Ultimate Validation Gatekeeper!
+
     async function runSimulation() {
         const errorBox = document.getElementById('error-box');
         const runBtn = document.getElementById('run-btn');
         const chartCard = document.getElementById('chart-card');
         errorBox.style.display = 'none'; // Hide old errors
         
-        // 1. Grab the values
+
         const fstart = parseFloat(document.getElementById('sim-fstart').value);
         const fstop = parseFloat(document.getElementById('sim-fstop').value);
         const fpoints = parseInt(document.getElementById('sim-fpoints').value);
@@ -80,29 +80,31 @@
         const N = parseFloat(document.getElementById('sim-N').value);
         const Lc = parseFloat(document.getElementById('sim-Lc').value);
         
-
+        // ensure all are filled
         if ([fstart, fstop, fpoints, Lm, Le, nmm, nee, am, ae, N, Lc].some(isNaN)) {
             showError("Validation Error: All base physical parameters must be specified."); return;
         }
-
-        // Frequency Logic Checks
+        // ensure freq > 0
         if (fstart <= 0 || fstop <= 0) {
             showError("Frequencies must be greater than zero.");
             return;
         }
+        // start < stop
         if (fstart >= fstop) {
             showError("Your Start Frequency must be lower than your Stop Frequency!");
             return;
         }
+        // limit points to prevent server overload
         if (fpoints <= 0 || fpoints > 10000) {
             showError("Number of points must be between 1 and 10,000 to save our poor server!");
             return;
         }
+        // N must be positive, even integer
         if (!Number.isInteger(N) || N <= 0 || N % 2 !== 0) {
             showError("The number of Bragg periods (N) must be a positive, EVEN whole number!");
             return;
         }
-        if (Lm <= 0 || Le <= 0) {
+        if (Lm <= 0 || Le <= 0 || Lc <= 0) {
             showError("Lengths cannot be zero or negative.");
             return;
         }
@@ -129,7 +131,6 @@
             N: N, Lc: Lc, pishift: isTicked, Lpi: Lpi, delta: delta
         };
         try {
-            // 4. Send the data to your Python Flask server
             const response = await fetch('/api/simulate', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
@@ -139,15 +140,13 @@
             const data = await response.json();
 
             if (response.ok) {
-                // 5. Success! Draw the beautiful chart
-                drawChart(data.frequencies, data.transmission);
+                drawChart(data.data.frequencies, data.data.transmission);
             } else {
                 showError("Server Error: " + data.message);
             }
         } catch (error) {
             showError("Connection Failed: Ensure the Flask server is running, darling.");
         } finally {
-            // 6. Unlock the UI when finished (success or fail)
             runBtn.disabled = false;
             runBtn.innerHTML = "Run Simulation";
             runBtn.style.backgroundColor = "#3498db";
@@ -156,7 +155,7 @@
 
     function drawChart(x_data, y_data) {
         const chartCard = document.getElementById('chart-card');
-        chartCard.style.display = 'block'; // Show the card!
+        chartCard.style.display = 'block'; 
 
         const ctx = document.getElementById('simChart').getContext('2d');
         
@@ -166,13 +165,13 @@
         currentChart = new Chart(ctx, {
             type: 'line',
             data: {
-                labels: x_data, // The frequency points (in THz)
+                labels: x_data, 
                 datasets: [{
                     label: 'Transmission Spectrum',
                     data: y_data, // The power transmission array
                     borderColor: '#2980b9',
                     borderWidth: 2,
-                    pointRadius: 0, // Hide the dots, just show a smooth line!
+                    pointRadius: 0, // Hide the dots
                     tension: 0.1
                 }]
             },
