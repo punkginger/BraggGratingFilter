@@ -8,11 +8,24 @@
     #error-box { display: none; background-color: #f8d7da; color: #721c24; padding: 15px; border-radius: 6px; border-left: 5px solid #f5c6cb; margin-bottom: 20px; font-weight: bold; }
     .readonly-input { background-color: #e9ecef; cursor: not-allowed; font-weight: bold; color: #2c3e50; }
     .highlight-result { font-size: 20px; color: #2980b9; margin-top: 10px; }
+    .slider-group { 
+        display: flex; 
+        align-items: center; 
+        gap: 15px; 
+    }
+    .weight-slider { 
+        flex-grow: 1; 
+        cursor: pointer; 
+    }
+    .weight-number { 
+        width: 80px; 
+        font-weight: bold; 
+        color: #2c3e50; 
+    }
 </style>
 
 <div class="card" style="border-top-color: #2980b9;">
     <h2>THz QCL Bragg Grating Filter Designer</h2>
-    <p class="subtitle">Sweep Length of metal and etch parts to optimize filter performance.</p>
     
     <div class="info-box">
         Workflow: Set your target and materials. The engine will sweep the duty cycle (40% - 85%) automatically, calculating the corresponding L_m and L_e for each step. 
@@ -67,6 +80,35 @@
     </div>
 </div>
 
+    <h3 class="section-title">3. Optimization Weights (Must sum to 100%)</h3>
+    
+    <div class="form-group">
+        <label>Peak Transmission Weight [%]:</label>
+        <div class="slider-group">
+            <input type="range" id="slider-trans" class="weight-slider" value="50" min="0" max="100" oninput="syncWeight('trans', 'slider')">
+            <input type="number" id="num-trans" class="weight-number" value="50" min="0" max="100" oninput="syncWeight('trans', 'num')">
+        </div>
+    </div>
+    
+    <div class="form-group">
+        <label>Q-Factor Weight [%]:</label>
+        <div class="slider-group">
+            <input type="range" id="slider-q" class="weight-slider" value="25" min="0" max="100" oninput="syncWeight('q', 'slider')">
+            <input type="number" id="num-q" class="weight-number" value="25" min="0" max="100" oninput="syncWeight('q', 'num')">
+        </div>
+    </div>
+    
+    <div class="form-group">
+        <label>Rejection Ratio Weight [%]:</label>
+        <div class="slider-group">
+            <input type="range" id="slider-rej" class="weight-slider" value="25" min="0" max="100" oninput="syncWeight('rej', 'slider')">
+            <input type="number" id="num-rej" class="weight-number" value="25" min="0" max="100" oninput="syncWeight('rej', 'num')">
+        </div>
+    </div>
+    
+    <div id="weight-feedback" style="grid-column: 1 / -1; font-weight: bold; color: #27ae60; padding: 10px; background-color: #e8f8f5; border-radius: 6px;">
+        Total Weight: 100% — Ready to Simulate!
+    </div>
     <button onclick="runDesign()" id="run-btn" style="background-color: #3498db; margin-top: 20px;">Find Optimal Duty Cycle</button>
 </div>
 
@@ -75,11 +117,62 @@
 <div class="card" id="chart-card" style="display: none; margin-top: 30px; border-top-color: #2980b9;">
     <h3 id="result-text" style="text-align: center; color: #2980b9;">Optimization Complete</h3>
     <div id="optimal-values-display" style="text-align: center; margin-bottom: 20px;" class="highlight-result"></div>
-    <canvas id="designChart"></canvas>
+    <div class="chart-stack" style="display: flex; flex-direction: column; gap: 30px;">
+        <div class="chart-container" style="position: relative; height: 300px; width: 100%;">
+            <canvas id="transmissionChart"></canvas>
+        </div>
+        <div class="chart-container" style="position: relative; height: 300px; width: 100%;">
+            <canvas id="qFactorChart"></canvas>
+        </div>
+        <div class="chart-container" style="position: relative; height: 300px; width: 100%;">
+            <canvas id="rejectionChart"></canvas>
+        </div>
+    </div>
 </div>
 
 <script>
-    let currentChart = null;
+    let currentCharts = {};
+
+    function syncWeight(metricId, source) {
+        const slider = document.getElementById(`slider-${metricId}`);
+        const numInput = document.getElementById(`num-${metricId}`);
+
+        if (source === 'slider') {
+            numInput.value = slider.value;
+        } else if (source === 'num') {
+            // If the user types a number, enforce the 0-100 limits and update the slider
+            let val = parseFloat(numInput.value) || 0;
+            if (val > 100) val = 100;
+            if (val < 0) val = 0;
+            slider.value = val;
+        }
+        validateWeights();
+    }
+
+    function validateWeights() {
+        const wTrans = parseFloat(document.getElementById('num-trans').value) || 0;
+        const wQ = parseFloat(document.getElementById('num-q').value) || 0;
+        const wRej = parseFloat(document.getElementById('num-rej').value) || 0;
+        
+        const total = wTrans + wQ + wRej;
+        const feedback = document.getElementById('weight-feedback');
+        const runBtn = document.getElementById('run-btn');
+
+
+        if (Math.abs(total - 100) < 0.1) { 
+            feedback.innerHTML = `Total Weight: ${total}% — Perfect! Ready to Simulate.`;
+            feedback.style.color = '#27ae60'; 
+            feedback.style.backgroundColor = '#e8f8f5'; 
+            runBtn.disabled = false;
+            runBtn.style.backgroundColor = '#3498db';
+        } else {
+            feedback.innerHTML = `Total Weight: ${total}% — Weights must sum to exactly 100%!`;
+            feedback.style.color = '#c0392b'; 
+            feedback.style.backgroundColor = '#fadbd8'; 
+            runBtn.disabled = true;
+            runBtn.style.backgroundColor = '#95a5a6'; 
+        }
+    }
 
     function calculateSingleLength(freqHz, nmm, nee, dutyCycle) {
         const c = 299792458;
@@ -136,6 +229,9 @@
         const ae = parseFloat(document.getElementById('des-ae').value);
         const N = parseInt(document.getElementById('des-N').value);
         const Lc = parseFloat(document.getElementById('des-Lc').value);
+        const weight_trans = parseFloat(document.getElementById('num-trans').value) / 100.0;
+        const weight_q = parseFloat(document.getElementById('num-q').value) / 100.0;
+        const weight_rej = parseFloat(document.getElementById('num-rej').value) / 100.0;
 
         if ([f_target, delta, nmm, nee, am, ae, N, Lc].some(isNaN)) { 
             showError("Validation Error: Please fill out all required physics parameters."); 
@@ -156,7 +252,8 @@
 
         const payload = {
             freq: f_target*1e12, nmm: nmm, nee: nee, am: am, ae: ae, N: N, Lc: Lc, delta: delta,
-            duty_min: 0.40, duty_max: 0.85
+            duty_min: 0.40, duty_max: 0.85, 
+            weight_trans: weight_trans, weight_q: weight_q, weight_rej: weight_rej
         };
 
         try {
@@ -170,20 +267,34 @@
 
             if (response.ok) {
                 const results = data.data;
-                const optLm_um = results.optimal_Lm; 
-                const optLe_um = results.optimal_Le; 
-                const optDuty = (parseFloat(results.optimal_D) * 100).toFixed(1);
+                const optLm_um = (results.optimal_Lm * 1e6).toFixed(3);
+                const optLe_um = (results.optimal_Le * 1e6).toFixed(3);
+                const optDuty = (results.optimal_D * 100).toFixed(1);
+                const optQ = results.optimal_q.toFixed(1);
+                const optRej = results.optimal_rej.toFixed(2);
+                const optSbWidth_GHz = (results.optimal_sb_width / 1e9).toFixed(2);
+                const best_idx = results.best_idx;
                 
                 document.getElementById('optimal-values-display').innerHTML = 
                     `<strong>Best Performance Found!</strong><br>
-                    Optimal Duty Cycle: ${optDuty}% <br>
-                    Optimal L_m: ${optLm_um} μm | Optimal L_e: ${optLe_um} μm`;
+                    <span style="color: #2c3e50; font-size: 16px;">
+                    Optimal Duty Cycle: <b>${optDuty}%</b> | L_m: <b>${optLm_um} μm</b> | L_e: <b>${optLe_um} μm</b><br>
+                    Q-Factor: <b>${optQ}</b> | Rejection Ratio: <b>${optRej}</b> | Stopband Width: <b>${optSbWidth_GHz} GHz</b>
+                    </span>`;
 
-                if (results.Lm_array && results.peak_transmissions) {
+                if (results.Lm_array && results.peak_transmissions && results.q_factors && results.rejections) {
                     const labels = results.Lm_array.map(val => (val * 1e6).toFixed(3) + ' μm');
-                    drawChart(labels, results.peak_transmissions);
+                    // 1. Peak Transmission 
+                    drawChart('transmissionChart', labels, results.peak_transmissions, 'Transmission Spike (a.u.)', '#2980b9', 'rgba(41, 128, 185, 0.1)', best_idx);
+
+                    // 2. Q-Factor 
+                    drawChart('qFactorChart', labels, results.q_factors, 'Quality Factor (Q)', '#e74c3c', 'rgba(231, 76, 60, 0.1)', best_idx);
+
+                    // 3. Rejection Ratio 
+                    drawChart('rejectionChart', labels, results.rejections, 'Rejection Ratio', '#8e44ad', 'rgba(142, 68, 173, 0.1)', best_idx);
+                
                 } else {
-                    console.warn("Skipping chart: Lm_array or peak_transmissions missing from server response.");
+                    console.warn("Skipping chart: Missing data arrays in response.");
                 }
                 
                 if (window.MathJax) { MathJax.typesetPromise(); }
@@ -199,34 +310,56 @@
         }
     }
 
-    function drawChart(x_data, y_data) {
+    function drawChart(canvasId, x_data, y_data, y_title, lineColor, fillColor, best_idx) {
         const chartCard = document.getElementById('chart-card');
-        chartCard.style.display = 'block';
+        chartCard.style.display = 'block'; // Un-hide the container holding all the charts
 
-        const ctx = document.getElementById('designChart').getContext('2d');
-        if (currentChart) { currentChart.destroy(); }
+        const ctx = document.getElementById(canvasId).getContext('2d');
+        
+        // Check if THIS specific chart exists, and destroy it so they don't overlap
+        if (currentCharts[canvasId]) { 
+            currentCharts[canvasId].destroy(); 
+        }
 
-        currentChart = new Chart(ctx, {
+        const pointRadii = y_data.map((_, index) => index === best_idx ? 8 : 0);
+        const pointStyles = y_data.map((_, index) => index === best_idx ? 'star' : 'circle');
+        const pointColors = y_data.map((_, index) => index === best_idx ? '#f1c40f' : lineColor);
+        const pointBorderColors = y_data.map((_, index) => index === best_idx ? '#2c3e50' : lineColor);
+        
+        currentCharts[canvasId] = new Chart(ctx, {
             type: 'line',
             data: {
                 labels: x_data, 
                 datasets: [{
-                    label: 'Peak Transmission Power (a.u.)',
+                    label: y_title,
                     data: y_data,
-                    borderColor: '#2980b9',
-                    backgroundColor: 'rgba(60, 126, 231, 0.1)',
+                    borderColor: lineColor,
+                    backgroundColor: fillColor,
                     borderWidth: 3,
-                    pointRadius: 0,
+                    pointRadius: pointRadii,
+                    pointStyle: pointStyles,
+                    pointBackgroundColor: pointColors,
+                    pointBorderColor: pointBorderColors,
+                    pointBorderWidth: 2,
+                    pointHoverRadius: 12,
                     tension: 0.3,
                     fill: true
                 }]
             },
             options: {
                 responsive: true,
+                // maintainAspectRatio: false is CRUCIAL here so the stacked charts don't get squashed!
+                maintainAspectRatio: false, 
                 interaction: { intersect: false, mode: 'index' },
                 scales: {
-                    x: { title: { display: true, text: 'Metal Length (L_m)', font: {size: 14, weight: 'bold'} }, ticks: {maxTicksLimit: 10} },
-                    y: { title: { display: true, text: 'Transmission Spike Amplitude', font: {size: 14, weight: 'bold'} }, beginAtZero: true }
+                    x: { 
+                        title: { display: true, text: 'Metal Length (L_m)', font: {size: 14, weight: 'bold'} }, 
+                        ticks: {maxTicksLimit: 10} 
+                    },
+                    y: { 
+                        title: { display: true, text: y_title, font: {size: 14, weight: 'bold'} }, 
+                        beginAtZero: true 
+                    }
                 }
             }
         });

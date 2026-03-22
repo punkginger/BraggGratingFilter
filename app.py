@@ -67,21 +67,38 @@ def run_design():
         ae = float(data.get('ae', 0))
         N = int(data.get('N', 0))
         Lc = float(data.get('Lc', 0))
+        weight_trans = float(data.get('weight_trans', 0))
+        weight_q = float(data.get('weight_q', 0))
+        weight_rej = float(data.get('weight_rej', 0))
         
         duty_min = float(data.get('duty_min', 0.40))
         duty_max = float(data.get('duty_max', 0.85))
         duty_cycle_range = (duty_min, duty_max)
         
-        Lm_array, Le_array, peak_transmissions, optimal_D, optimal_Lm, optimal_Le = optimize_duty_cycle(
-            f_target, nmm, nee, am, ae, N, Lc, duty_cycle_range, delta
+        duty_cycles, Lm_array, Le_array, peak_transmissions, q_factors, rejections, sb_widths, optimal_D, optimal_Lm, optimal_Le, best_idx = optimize_duty_cycle(
+            f_target, nmm, nee, am, ae, N, Lc, duty_cycle_range, delta, weight_trans, weight_q, weight_rej
         )
-                
+        
+        optimal_q = q_factors[best_idx]
+        optimal_rej = rejections[best_idx]
+        optimal_sb_width = sb_widths[best_idx]
+
         results = {
+            "duty_cycles": duty_cycles.tolist(),
             "Lm_array": Lm_array.tolist(),
-            "optimal_Lm": f"{optimal_Lm * 1e6:.3f}",
-            "optimal_Le": f"{optimal_Le * 1e6:.3f}",
-            "optimal_D": f"{optimal_D:.3f}",
-            "peak_transmissions": peak_transmissions.tolist()
+            "Le_array": Le_array.tolist(),
+            "peak_transmissions": peak_transmissions.tolist(),
+            "q_factors": q_factors.tolist(),
+            "rejections": rejections.tolist(),
+            "sb_widths": sb_widths.tolist(),
+                
+            "optimal_D": float(optimal_D),
+            "optimal_Lm": float(optimal_Lm),
+            "optimal_Le": float(optimal_Le),
+            "optimal_q": float(optimal_q),
+            "optimal_rej": float(optimal_rej),
+            "optimal_sb_width": float(optimal_sb_width),
+            "best_idx": int(best_idx)
         }
         
         return jsonify({"status": "success", "data": results}), 200
@@ -89,6 +106,54 @@ def run_design():
     except Exception as e:
         print(f"Oh eck, a design error occurred: {e}")
         return jsonify({"status": "error", "message": str(e)}), 400
+
+
+# optimize function directly from original matlab code, abandoned for now.
+@app.route('/optimize')
+def optimize_page():
+    return render_template('optimize.html', active_page='optimize')
+
+
+@app.route('/api/optimize', methods=['POST'])
+def run_optimization():
+    data = request.json
+    
+    try:
+        sweep_array = np.linspace(data['sweep_start'], data['sweep_stop'], data['sweep_points'])
+        static = data['static_params']
+        params = {
+            'Lm': static.get('Lm'),
+            'Le': static.get('Le'),
+            'nmm': static.get('nmm'),
+            'nee': static.get('nee'),
+            'am': static.get('am'),
+            'ae': static.get('ae'),
+            'N': static.get('N'),
+            'Lc': static.get('Lc'),
+            'Lpi': static.get('Lpi')
+        }
+        
+
+        sweep_param_name = data['sweep_param']
+        params[sweep_param_name] = sweep_array
+        
+        error_array, optimal_value = engineer_bragg_grating(
+            data['f_target'],
+            params['Lm'], params['Le'], params['nmm'], params['nee'],
+            params['am'], params['ae'], params['N'], params['Lc'],
+            True, params['Lpi'], data['delta']
+        )
+        
+        return jsonify({
+            "status": "success",
+            "optimal_value": float(optimal_value),
+            "sweep_array": sweep_array.tolist(),
+            "error_array": error_array.tolist()
+        }), 200
+
+    except Exception as e:
+        return jsonify({"status": "error", "message": str(e)}), 400
+
 
 if __name__ == '__main__':
     app.run(debug=True, port=5000)
