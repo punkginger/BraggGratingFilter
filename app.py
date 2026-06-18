@@ -22,7 +22,6 @@ def run_simulation():
         f_start = float(data.get('f_start', 0))
         f_stop = float(data.get('f_stop', 0))
         points = int(data.get('points', 1000))
-        
         Lm = float(data.get('Lm', 0))
         Le = float(data.get('Le', 0))
         nmm = float(data.get('nmm', 0))
@@ -34,11 +33,20 @@ def run_simulation():
         pishift = bool(data.get('pishift', False))
         Lpi = float(data.get('Lpi', 0))
         delta = float(data.get('delta', 0))
+        N_sub = int(data.get('N_sub', 10))
+        d_trans = float(data.get('d_trans', 0.0))
+        sigma_Le = float(data.get('sigma_Le', 0.0))
+        seed = data.get('seed')
+        if seed is not None and seed != "":
+            seed = int(seed)
+        else:
+            seed = None
         
         f = np.linspace(f_start, f_stop, points)
         
         ref, trans, stopband = bragg_grating_tmm(
-            f, Lm, Le, nmm, nee, am, ae, N, Lc, pishift, Lpi, delta
+            f, Lm, Le, nmm, nee, am, ae, N, Lc, pishift, Lpi, delta,
+            N_sub=N_sub, d_trans=d_trans, sigma_Le=sigma_Le, seed=seed
         )
         
 

@@ -43,6 +43,12 @@
             <div class="form-group"><label>Pi-Shift Length (L_pi) [m]:</label><input type="number" id="sim-Lpi" placeholder="e.g., 6.22e-6"></div>
             <div class="form-group"><label>Deviation Delta [m]:</label><input type="number" id="sim-delta" placeholder="e.g., 0.0"></div>
         </div>
+
+        <h3 class="section-title">Non-Ideal Effects (Interface & Roughness)</h3>
+        <div class="form-group"><label>Interface Layers (N_sub):</label><input type="number" id="sim-Nsub" placeholder="Default 10" step="1"></div>
+        <div class="form-group"><label>Transition Thickness (d_trans) [m]:</label><input type="number" id="sim-dtrans" placeholder="e.g., 50e-9"></div>
+        <div class="form-group"><label>Roughness Sigma (sigma_Le) [m]:</label><input type="number" id="sim-sigmaLe" placeholder="e.g., 10e-9"></div>
+        <div class="form-group"><label>Random Seed (Optional):</label><input type="number" id="sim-seed" placeholder="Integer"></div>
     </div>
 
     <button onclick="runSimulation()" id="run-btn">Run Simulation</button>
@@ -79,6 +85,16 @@
         const ae = parseFloat(document.getElementById('sim-ae').value);
         const N = parseFloat(document.getElementById('sim-N').value);
         const Lc = parseFloat(document.getElementById('sim-Lc').value);
+
+        // --- New parameters ---
+        const N_sub_val = document.getElementById('sim-Nsub').value;
+        const N_sub = N_sub_val !== "" ? parseInt(N_sub_val) : 10;
+        const d_trans_val = document.getElementById('sim-dtrans').value;
+        const d_trans = d_trans_val !== "" ? parseFloat(d_trans_val) : 0.0;
+        const sigma_Le_val = document.getElementById('sim-sigmaLe').value;
+        const sigma_Le = sigma_Le_val !== "" ? parseFloat(sigma_Le_val) : 0.0;
+        const seed_val = document.getElementById('sim-seed').value;
+        const seed = seed_val !== "" ? parseInt(seed_val) : null;
         
         // ensure all are filled
         if ([fstart, fstop, fpoints, Lm, Le, nmm, nee, am, ae, N, Lc].some(isNaN)) {
@@ -128,7 +144,8 @@
             f_stop: fstop * 1e12,
             points: fpoints,
             Lm: Lm, Le: Le, nmm: nmm, nee: nee, am: am, ae: ae, 
-            N: N, Lc: Lc, pishift: isTicked, Lpi: Lpi, delta: delta
+            N: N, Lc: Lc, pishift: isTicked, Lpi: Lpi, delta: delta,
+            N_sub: N_sub, d_trans: d_trans, sigma_Le: sigma_Le, seed: seed
         };
         try {
             const response = await fetch('/api/simulate', {
