@@ -11,6 +11,23 @@
     .slider-group { display: flex; align-items: center; gap: 15px; }
     .weight-slider { flex-grow: 1; cursor: pointer; }
     .weight-number { width: 80px; font-weight: bold; color: #2c3e50; }
+    .input-with-unit { display: flex; align-items: center; }
+    .input-with-unit input {
+        flex: 1;
+        border-top-right-radius: 0;
+        border-bottom-right-radius: 0;
+    }
+    .unit-badge {
+        padding: 12px 14px;
+        background-color: #ecf0f1;
+        border: 1px solid #bdc3c7;
+        border-left: 0;
+        border-top-right-radius: 6px;
+        border-bottom-right-radius: 6px;
+        color: #2c3e50;
+        font-weight: 600;
+        white-space: nowrap;
+    }
     
     /* NEW: Tab Styling */
     .tab-container { display: flex; gap: 10px; margin-top: 20px; margin-bottom: 15px; }
@@ -37,8 +54,8 @@
             <input type="number" id="des-freq" placeholder="e.g., 2.0" step="0.1" oninput="calculateRanges()">
         </div>
         <div class="form-group">
-            <label>Phase Deviation (delta) [m]:</label>
-            <input type="number" id="des-delta" placeholder="e.g., 0.0" step="1e-6">
+            <label>Phase Deviation (delta) [nm]:</label>
+            <div class="input-with-unit"><input type="number" id="des-delta" placeholder="e.g., 0.0" step="0.1"><span class="unit-badge">nm</span></div>
         </div>
         <div class="form-group">
             <label>Metal Refractive Index (n_mm):</label>
@@ -57,8 +74,8 @@
             <input type="number" id="des-ae" placeholder="e.g., 3812">
         </div>
         <div class="form-group">
-            <label>Chip Length (L_c) [m]:</label>
-            <input type="number" id="des-Lc" placeholder="e.g., 2e-3">
+            <label>Chip Length (Lc) [mm]:</label>
+            <div class="input-with-unit"><input type="number" id="des-Lc" placeholder="e.g., 2.0" step="0.01"><span class="unit-badge">mm</span></div>
         </div>
     </div> <div class="tab-container">
         <button id="btn-tab-duty" class="tab-btn active" onclick="switchMode('duty')">Mode 1: Sweep Duty Cycle</button>
@@ -153,6 +170,26 @@
 <script>
     let currentCharts = {};
     let currentMode = 'duty'; // Tracks which tab is active!
+    const UNIT_SCALE = {
+        nm: 1e-9,
+        mm: 1e-3
+    };
+
+    function readScaledInput(id, unit) {
+        const rawValue = document.getElementById(id).value;
+        if (rawValue === "") {
+            return NaN;
+        }
+        return parseFloat(rawValue) * UNIT_SCALE[unit];
+    }
+
+    function formatAxisTick(value, decimals = 3) {
+        const numericValue = Number(value);
+        if (!Number.isFinite(numericValue)) {
+            return value;
+        }
+        return numericValue.toFixed(decimals).replace(/\.?0+$/, '');
+    }
 
     function switchMode(mode) {
         currentMode = mode;
@@ -254,12 +291,12 @@
         chartCard.style.display = 'none';
 
         const f_target = parseFloat(document.getElementById('des-freq').value); 
-        const delta = parseFloat(document.getElementById('des-delta').value);
+        const delta = readScaledInput('des-delta', 'nm');
         const nmm = parseFloat(document.getElementById('des-nmm').value);
         const nee = parseFloat(document.getElementById('des-nee').value);
         const am = parseFloat(document.getElementById('des-am').value);
         const ae = parseFloat(document.getElementById('des-ae').value);
-        const Lc = parseFloat(document.getElementById('des-Lc').value);
+        const Lc = readScaledInput('des-Lc', 'mm');
         
         const weight_trans = parseFloat(document.getElementById('num-trans').value) / 100.0;
         const weight_q = parseFloat(document.getElementById('num-q').value) / 100.0;
@@ -284,7 +321,7 @@
             payload.duty_min = 0.40;
             payload.duty_max = 0.85;
             targetURL = '/api/sweep_duty'; 
-            xAxisTitle = 'Metal Length (L_m)';
+            xAxisTitle = 'Metal Length (Lm) [um]';
         } 
         // MODE 2: N Sweep
         else {
@@ -351,17 +388,21 @@
 
                 // Prepare X-axis arrays
                 let labels = [];
+                let xTickDecimals = 0;
+                let tooltipUnit = '';
                 if (currentMode === 'duty' && results.Lm_array) {
-                    labels = results.Lm_array.map(val => (val * 1e6).toFixed(3) + ' μm');
+                    labels = results.Lm_array.map(val => val * 1e6);
+                    xTickDecimals = 3;
+                    tooltipUnit = ' um';
                 } else if (currentMode === 'n' && results.n_array) {
-                    labels = results.n_array.map(val => val.toString());
+                    labels = results.n_array.map(val => val);
+                    xTickDecimals = 0;
                 }
 
                 if (labels.length > 0 && results.peak_transmissions) {
-                    // Passed xAxisTitle to the drawChart function!
-                    drawChart('transmissionChart', labels, results.peak_transmissions, 'Transmission Spike (a.u.)', '#2980b9', 'rgba(41, 128, 185, 0.1)', best_idx, xAxisTitle);
-                    drawChart('qFactorChart', labels, results.q_factors, 'Quality Factor (Q)', '#e74c3c', 'rgba(231, 76, 60, 0.1)', best_idx, xAxisTitle);
-                    drawChart('rejectionChart', labels, results.rejections, 'Rejection Ratio', '#8e44ad', 'rgba(142, 68, 173, 0.1)', best_idx, xAxisTitle);
+                    drawChart('transmissionChart', labels, results.peak_transmissions, 'Transmission Spike (a.u.)', '#2980b9', 'rgba(41, 128, 185, 0.1)', best_idx, xAxisTitle, xTickDecimals, tooltipUnit);
+                    drawChart('qFactorChart', labels, results.q_factors, 'Quality Factor (Q)', '#e74c3c', 'rgba(231, 76, 60, 0.1)', best_idx, xAxisTitle, xTickDecimals, tooltipUnit);
+                    drawChart('rejectionChart', labels, results.rejections, 'Rejection Ratio', '#8e44ad', 'rgba(142, 68, 173, 0.1)', best_idx, xAxisTitle, xTickDecimals, tooltipUnit);
                 } else {
                     console.warn("Skipping chart: Missing data arrays in response.");
                 }
@@ -379,8 +420,7 @@
         }
     }
 
-    // NOTICE: Added x_title as the very last argument!
-    function drawChart(canvasId, x_data, y_data, y_title, lineColor, fillColor, best_idx, x_title) {
+    function drawChart(canvasId, x_data, y_data, y_title, lineColor, fillColor, best_idx, x_title, xTickDecimals = 0, tooltipUnit = '') {
         const chartCard = document.getElementById('chart-card');
         chartCard.style.display = 'block'; 
 
@@ -416,10 +456,26 @@
                 responsive: true,
                 maintainAspectRatio: false, 
                 interaction: { intersect: false, mode: 'index' },
+                plugins: {
+                    tooltip: {
+                        callbacks: {
+                            title: function(context) {
+                                const rawLabel = context[0].label;
+                                return `${x_title}: ${formatAxisTick(rawLabel, xTickDecimals)}${tooltipUnit}`;
+                            }
+                        }
+                    }
+                },
                 scales: {
                     x: { 
                         title: { display: true, text: x_title, font: {size: 14, weight: 'bold'} }, 
-                        ticks: {maxTicksLimit: 10} 
+                        ticks: {
+                            maxTicksLimit: 8,
+                            callback: function(value) {
+                                const label = this.getLabelForValue(value);
+                                return formatAxisTick(label, xTickDecimals);
+                            }
+                        }
                     },
                     y: { 
                         title: { display: true, text: y_title, font: {size: 14, weight: 'bold'} }, 

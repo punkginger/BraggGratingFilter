@@ -4,8 +4,38 @@
 <style>
     .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; }
     .section-title { grid-column: 1 / -1; margin-top: 20px; margin-bottom: 5px; border-bottom: 2px solid #ecf0f1; padding-bottom: 5px; color: #2980b9; }
+    .input-with-unit { display: flex; align-items: center; }
+    .input-with-unit input {
+        flex: 1;
+        border-top-right-radius: 0;
+        border-bottom-right-radius: 0;
+    }
+    .unit-badge {
+        padding: 12px 14px;
+        background-color: #ecf0f1;
+        border: 1px solid #bdc3c7;
+        border-left: 0;
+        border-top-right-radius: 6px;
+        border-bottom-right-radius: 6px;
+        color: #2c3e50;
+        font-weight: 600;
+        white-space: nowrap;
+    }
     /* A lovely red box for our error messages */
     #error-box { display: none; background-color: #f8d7da; color: #721c24; padding: 15px; border-radius: 6px; border-left: 5px solid #f5c6cb; margin-bottom: 20px; font-weight: bold; }
+    .chart-title { color: #2c3e50; font-size: 18px; margin: 0 0 4px 0; }
+    .chart-subtitle { color: #7f8c8d; font-size: 13px; margin: 0 0 18px 0; }
+    .scorecard-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 15px; }
+    .stat-card { background: #f8f9fa; border: 1px solid #e9ecef; border-left: 5px solid #3498db; border-radius: 8px; padding: 14px 16px; }
+    .stat-card .stat-label { font-size: 12px; color: #7f8c8d; text-transform: uppercase; letter-spacing: 0.5px; font-weight: 600; }
+    .stat-card .stat-value { font-size: 24px; font-weight: 700; color: #2c3e50; margin-top: 4px; }
+    .stat-card .stat-unit { font-size: 14px; color: #95a5a6; font-weight: 600; }
+    .stat-card.good { border-left-color: #27ae60; }
+    .stat-card.bad { border-left-color: #e74c3c; }
+    .stat-badge { display: inline-block; margin-top: 6px; font-size: 12px; font-weight: 700; padding: 2px 8px; border-radius: 10px; }
+    .stat-badge.pass { background: #e8f8f5; color: #27ae60; }
+    .stat-badge.fail { background: #fadbd8; color: #c0392b; }
+    @media (max-width: 640px) { .scorecard-grid { grid-template-columns: 1fr 1fr; } }
 </style>
 
 <div class="card">
@@ -22,14 +52,23 @@
         <div></div>
 
         <h3 class="section-title">Physical Parameters</h3>
-        <div class="form-group"><label>Metal Length (L_m) [m]:</label><input type="number" id="sim-Lm" placeholder="e.g., 12.93e-6"></div>
-        <div class="form-group"><label>Etch Length (L_e) [m]:</label><input type="number" id="sim-Le" placeholder="e.g., 3.11e-6"></div>
+        <div class="form-group">
+            <label>Metal Length (Lm) [um]:</label>
+            <div class="input-with-unit"><input type="number" id="sim-Lm" placeholder="e.g., 12.93" step="0.01"><span class="unit-badge">um</span></div>
+        </div>
+        <div class="form-group">
+            <label>Etch Length (Le) [um]:</label>
+            <div class="input-with-unit"><input type="number" id="sim-Le" placeholder="e.g., 3.11" step="0.01"><span class="unit-badge">um</span></div>
+        </div>
         <div class="form-group"><label>Metal Refractive Index (n_mm):</label><input type="number" id="sim-nmm" placeholder="e.g., 3.67" step="0.01"></div>
         <div class="form-group"><label>Etch Refractive Index (n_ee):</label><input type="number" id="sim-nee" placeholder="e.g., 3.07" step="0.01"></div>
         <div class="form-group"><label>Metal Absorption (a_m) [m^-1]:</label><input type="number" id="sim-am" placeholder="e.g., 750"></div>
         <div class="form-group"><label>Etch Absorption (a_e) [m^-1]:</label><input type="number" id="sim-ae" placeholder="e.g., 3812"></div>
         <div class="form-group"><label>Bragg Periods N (Even Integer):</label><input type="number" id="sim-N" placeholder="e.g., 14" step="2"></div>
-        <div class="form-group"><label>Chip Length (L_c) [m]:</label><input type="number" id="sim-Lc" placeholder="e.g., 2e-3"></div>
+        <div class="form-group">
+            <label>Chip Length (Lc) [mm]:</label>
+            <div class="input-with-unit"><input type="number" id="sim-Lc" placeholder="e.g., 2.0" step="0.01"><span class="unit-badge">mm</span></div>
+        </div>
 
         <h3 class="section-title">Phase Shift</h3>
         <div class="form-group" style="grid-column: 1 / -1;">
@@ -40,14 +79,26 @@
         </div>
         
         <div id="pi-params" class="form-grid" style="grid-column: 1 / -1; margin: 0; display: none;">
-            <div class="form-group"><label>Pi-Shift Length (L_pi) [m]:</label><input type="number" id="sim-Lpi" placeholder="e.g., 6.22e-6"></div>
-            <div class="form-group"><label>Deviation Delta [m]:</label><input type="number" id="sim-delta" placeholder="e.g., 0.0"></div>
+            <div class="form-group">
+                <label>Pi-Shift Length (Lpi) [um]:</label>
+                <div class="input-with-unit"><input type="number" id="sim-Lpi" placeholder="e.g., 6.22" step="0.01"><span class="unit-badge">um</span></div>
+            </div>
+            <div class="form-group">
+                <label>Deviation Delta [nm]:</label>
+                <div class="input-with-unit"><input type="number" id="sim-delta" placeholder="e.g., 0.0" step="0.1"><span class="unit-badge">nm</span></div>
+            </div>
         </div>
 
         <h3 class="section-title">Non-Ideal Effects (Interface & Roughness)</h3>
         <div class="form-group"><label>Interface Layers (N_sub):</label><input type="number" id="sim-Nsub" placeholder="Default 10" step="1"></div>
-        <div class="form-group"><label>Transition Thickness (d_trans) [m]:</label><input type="number" id="sim-dtrans" placeholder="e.g., 50e-9"></div>
-        <div class="form-group"><label>Roughness Sigma (sigma_Le) [m]:</label><input type="number" id="sim-sigmaLe" placeholder="e.g., 10e-9"></div>
+        <div class="form-group">
+            <label>Transition Thickness (dtrans) [nm]:</label>
+            <div class="input-with-unit"><input type="number" id="sim-dtrans" placeholder="e.g., 50" step="1"><span class="unit-badge">nm</span></div>
+        </div>
+        <div class="form-group">
+            <label>Roughness Sigma (sigmaLe) [nm]:</label>
+            <div class="input-with-unit"><input type="number" id="sim-sigmaLe" placeholder="e.g., 10" step="1"><span class="unit-badge">nm</span></div>
+        </div>
         <div class="form-group"><label>Random Seed (Optional):</label><input type="number" id="sim-seed" placeholder="Integer"></div>
     </div>
 
@@ -58,14 +109,72 @@
     <canvas id="simChart"></canvas>
 </div>
 
+<div class="card" id="scorecard-card" style="display: none; margin-top: 30px;">
+    <h3 class="chart-title">Filter Figures of Merit</h3>
+    <p class="chart-subtitle">Quality metrics for the central defect peak (non-ideal device).</p>
+    <div id="scorecard-grid" class="scorecard-grid"></div>
+    <div id="scorecard-empty" style="display:none; color:#7f8c8d;">No defect peak found inside the current frequency range. Widen the range or enable the central pi-shift.</div>
+</div>
+
+<div class="card" id="db-chart-card" style="display: none; margin-top: 30px;">
+    <h3 class="chart-title">Transmission on a dB (log) Scale</h3>
+    <p class="chart-subtitle">Reveals the true stopband depth and side modes that are invisible on the linear plot.</p>
+    <canvas id="dbChart"></canvas>
+</div>
+
+<div class="card" id="zoom-chart-card" style="display: none; margin-top: 30px;">
+    <h3 class="chart-title">Passband Close-up (FWHM)</h3>
+    <p class="chart-subtitle">Zoom on the defect peak with the half-maximum level marked.</p>
+    <canvas id="zoomChart"></canvas>
+</div>
+
+<div class="card" id="compare-chart-card" style="display: none; margin-top: 30px;">
+    <h3 class="chart-title">Ideal vs Non-Ideal Degradation</h3>
+    <p class="chart-subtitle">How much interface grading and roughness cost each figure of merit.</p>
+    <canvas id="compareChart"></canvas>
+</div>
+
 <script>
     let currentChart = null;
+    let dbChart = null;
+    let zoomChart = null;
+    let compareChart = null;
 
     function togglePiShift() {
         const isTicked = document.getElementById('sim-pishift').checked;
         document.getElementById('pi-params').style.display = isTicked ? 'grid' : 'none';
     }
     
+
+    const UNIT_SCALE = {
+        um: 1e-6,
+        nm: 1e-9,
+        mm: 1e-3
+    };
+
+    function readScaledInput(id, unit) {
+        const rawValue = document.getElementById(id).value;
+        if (rawValue === "") {
+            return NaN;
+        }
+        return parseFloat(rawValue) * UNIT_SCALE[unit];
+    }
+
+    function readOptionalScaledInput(id, unit, fallback = 0.0) {
+        const rawValue = document.getElementById(id).value;
+        if (rawValue === "") {
+            return fallback;
+        }
+        return parseFloat(rawValue) * UNIT_SCALE[unit];
+    }
+
+    function formatFrequencyTick(value) {
+        const numericValue = Number(value);
+        if (!Number.isFinite(numericValue)) {
+            return value;
+        }
+        return numericValue.toFixed(3).replace(/\.?0+$/, '');
+    }
 
     async function runSimulation() {
         const errorBox = document.getElementById('error-box');
@@ -77,22 +186,22 @@
         const fstart = parseFloat(document.getElementById('sim-fstart').value);
         const fstop = parseFloat(document.getElementById('sim-fstop').value);
         const fpoints = parseInt(document.getElementById('sim-fpoints').value);
-        const Lm = parseFloat(document.getElementById('sim-Lm').value);
-        const Le = parseFloat(document.getElementById('sim-Le').value);
+        const Lm = readScaledInput('sim-Lm', 'um');
+        const Le = readScaledInput('sim-Le', 'um');
         const nmm = parseFloat(document.getElementById('sim-nmm').value);
         const nee = parseFloat(document.getElementById('sim-nee').value);
         const am = parseFloat(document.getElementById('sim-am').value);
         const ae = parseFloat(document.getElementById('sim-ae').value);
         const N = parseFloat(document.getElementById('sim-N').value);
-        const Lc = parseFloat(document.getElementById('sim-Lc').value);
+        const Lc = readScaledInput('sim-Lc', 'mm');
 
         // --- New parameters ---
         const N_sub_val = document.getElementById('sim-Nsub').value;
         const N_sub = N_sub_val !== "" ? parseInt(N_sub_val) : 10;
         const d_trans_val = document.getElementById('sim-dtrans').value;
-        const d_trans = d_trans_val !== "" ? parseFloat(d_trans_val) : 0.0;
+        const d_trans = d_trans_val !== "" ? readOptionalScaledInput('sim-dtrans', 'nm') : 0.0;
         const sigma_Le_val = document.getElementById('sim-sigmaLe').value;
-        const sigma_Le = sigma_Le_val !== "" ? parseFloat(sigma_Le_val) : 0.0;
+        const sigma_Le = sigma_Le_val !== "" ? readOptionalScaledInput('sim-sigmaLe', 'nm') : 0.0;
         const seed_val = document.getElementById('sim-seed').value;
         const seed = seed_val !== "" ? parseInt(seed_val) : null;
         
@@ -129,8 +238,8 @@
         let delta = 0.0;
 
         if (isTicked) {
-            Lpi = parseFloat(document.getElementById('sim-Lpi').value);
-            delta = parseFloat(document.getElementById('sim-delta').value);
+            Lpi = readScaledInput('sim-Lpi', 'um');
+            delta = readScaledInput('sim-delta', 'nm');
             if (isNaN(Lpi) || isNaN(delta)) { showError("Validation Error: Phase-shift parameters missing."); return; }
         }
 
@@ -157,7 +266,8 @@
             const data = await response.json();
 
             if (response.ok) {
-                drawChart(data.data.frequencies, data.data.transmission);
+                drawChart(data.data.frequencies, data.data.transmission, data.data.transmission_ideal);
+                renderMetrics(data.data);
             } else {
                 showError("Server Error: " + data.message);
             }
@@ -170,7 +280,7 @@
         }
     }
 
-    function drawChart(x_data, y_data) {
+    function drawChart(x_data, y_data, ideal_y_data = []) {
         const chartCard = document.getElementById('chart-card');
         chartCard.style.display = 'block'; 
 
@@ -183,26 +293,337 @@
             type: 'line',
             data: {
                 labels: x_data, 
-                datasets: [{
-                    label: 'Transmission Spectrum',
-                    data: y_data, 
-                    borderColor: '#2980b9',
-                    borderWidth: 2,
-                    pointRadius: 0, // Hide the dots
-                    tension: 0.1
-                }]
+                datasets: [
+                    {
+                        label: 'Transmission with Non-Ideal Effects',
+                        data: y_data,
+                        borderColor: '#2980b9',
+                        backgroundColor: 'rgba(41, 128, 185, 0.12)',
+                        borderWidth: 2.5,
+                        pointRadius: 0,
+                        tension: 0.1,
+                        fill: false
+                    },
+                    {
+                        label: 'Ideal Transmission',
+                        data: ideal_y_data,
+                        borderColor: '#e67e22',
+                        backgroundColor: 'rgba(230, 126, 34, 0.12)',
+                        borderWidth: 2,
+                        pointRadius: 0,
+                        tension: 0.1,
+                        fill: false,
+                        borderDash: [8, 5]
+                    }
+                ]
             },
             options: {
                 responsive: true,
                 interaction: { intersect: false, mode: 'index' },
+                plugins: {
+                    legend: {
+                        display: true
+                    },
+                    tooltip: {
+                        callbacks: {
+                            title: function(context) {
+                                return `Frequency: ${formatFrequencyTick(context[0].label)} THz`;
+                            }
+                        }
+                    }
+                },
                 scales: {
-                    x: { title: { display: true, text: 'Frequency (THz)', font: {size: 14, weight: 'bold'} } },
+                    x: {
+                        title: { display: true, text: 'Frequency (THz)', font: {size: 14, weight: 'bold'} },
+                        ticks: {
+                            maxTicksLimit: 8,
+                            callback: function(value) {
+                                const label = this.getLabelForValue(value);
+                                return formatFrequencyTick(label);
+                            }
+                        }
+                    },
                     y: { title: { display: true, text: 'Transmission [a.u.]', font: {size: 14, weight: 'bold'} }, beginAtZero: true }
                 }
             }
         });
 
         chartCard.scrollIntoView({ behavior: 'smooth' });
+    }
+
+    function fmt(value, decimals = 2) {
+        if (value === null || value === undefined || !Number.isFinite(Number(value))) {
+            return "--";
+        }
+        return Number(value).toFixed(decimals);
+    }
+
+    function renderMetrics(payload) {
+        const metrics = payload.metrics || {};
+        const nonideal = metrics.nonideal || {};
+
+        renderScorecard(nonideal);
+        drawDbChart(payload.frequencies, payload.transmission_db, payload.transmission_ideal_db);
+        drawZoomChart(payload.frequencies, payload.transmission, nonideal);
+        drawComparisonChart(metrics.ideal || {}, nonideal);
+    }
+
+    function renderScorecard(m) {
+        const card = document.getElementById('scorecard-card');
+        const grid = document.getElementById('scorecard-grid');
+        const empty = document.getElementById('scorecard-empty');
+        card.style.display = 'block';
+
+        if (!m || !m.valid) {
+            grid.innerHTML = '';
+            grid.style.display = 'none';
+            empty.style.display = 'block';
+            return;
+        }
+        grid.style.display = 'grid';
+        empty.style.display = 'none';
+
+        const smsrPass = m.smsr_db !== null && m.smsr_db >= 30.0;
+        const cards = [
+            {
+                label: 'Side-Mode Suppression',
+                value: fmt(m.smsr_db, 1), unit: 'dB',
+                cls: m.smsr_db === null ? '' : (smsrPass ? 'good' : 'bad'),
+                badge: m.smsr_db === null ? null : (smsrPass
+                    ? '<span class="stat-badge pass">SINGLE-MODE</span>'
+                    : '<span class="stat-badge fail">MULTI-MODE</span>')
+            },
+            { label: 'Insertion Loss', value: fmt(m.insertion_loss_db, 2), unit: 'dB' },
+            { label: 'Quality Factor (Q)', value: fmt(m.q_factor, 0), unit: '' },
+            { label: '3 dB Bandwidth', value: fmt(m.fwhm_ghz, 2), unit: 'GHz' },
+            { label: 'Stopband Rejection', value: fmt(m.rejection_db, 1), unit: 'dB' },
+            { label: 'Peak Frequency', value: fmt(m.peak_freq_thz, 3), unit: 'THz' },
+            { label: 'Detuning from Target', value: fmt(m.detuning_ghz, 2), unit: 'GHz' },
+            { label: 'Peak Transmission', value: fmt(m.peak_trans, 3), unit: 'a.u.' }
+        ];
+
+        grid.innerHTML = cards.map(c => `
+            <div class="stat-card ${c.cls || ''}">
+                <div class="stat-label">${c.label}</div>
+                <div class="stat-value">${c.value} <span class="stat-unit">${c.unit}</span></div>
+                ${c.badge || ''}
+            </div>
+        `).join('');
+    }
+
+    function drawDbChart(x_data, y_db, ideal_y_db) {
+        document.getElementById('db-chart-card').style.display = 'block';
+        const ctx = document.getElementById('dbChart').getContext('2d');
+        if (dbChart) { dbChart.destroy(); }
+
+        dbChart = new Chart(ctx, {
+            type: 'line',
+            data: {
+                labels: x_data,
+                datasets: [
+                    {
+                        label: 'Non-Ideal (dB)',
+                        data: y_db,
+                        borderColor: '#2980b9',
+                        borderWidth: 2.5,
+                        pointRadius: 0,
+                        tension: 0.1,
+                        fill: false
+                    },
+                    {
+                        label: 'Ideal (dB)',
+                        data: ideal_y_db,
+                        borderColor: '#e67e22',
+                        borderWidth: 2,
+                        pointRadius: 0,
+                        tension: 0.1,
+                        fill: false,
+                        borderDash: [8, 5]
+                    }
+                ]
+            },
+            options: {
+                responsive: true,
+                interaction: { intersect: false, mode: 'index' },
+                plugins: {
+                    legend: { display: true },
+                    tooltip: {
+                        callbacks: {
+                            title: function(context) {
+                                return `Frequency: ${formatFrequencyTick(context[0].label)} THz`;
+                            }
+                        }
+                    }
+                },
+                scales: {
+                    x: {
+                        title: { display: true, text: 'Frequency (THz)', font: {size: 14, weight: 'bold'} },
+                        ticks: {
+                            maxTicksLimit: 8,
+                            callback: function(value) {
+                                return formatFrequencyTick(this.getLabelForValue(value));
+                            }
+                        }
+                    },
+                    y: { title: { display: true, text: 'Transmission [dB]', font: {size: 14, weight: 'bold'} } }
+                }
+            }
+        });
+    }
+
+    function drawZoomChart(x_data, y_data, m) {
+        const card = document.getElementById('zoom-chart-card');
+        card.style.display = 'block';
+        const ctx = document.getElementById('zoomChart').getContext('2d');
+        if (zoomChart) { zoomChart.destroy(); }
+
+        if (!m || !m.valid) {
+            // Nothing sensible to zoom into; hide to avoid a confusing empty axis.
+            card.style.display = 'none';
+            return;
+        }
+
+        // Window the data to roughly +/- 3 FWHM around the peak.
+        const fwhmThz = m.fwhm_ghz / 1000.0;
+        const halfSpan = Math.max(fwhmThz * 3.0, (x_data[1] - x_data[0]) * 5.0);
+        const lo = m.peak_freq_thz - halfSpan;
+        const hi = m.peak_freq_thz + halfSpan;
+
+        const zx = [];
+        const zy = [];
+        for (let i = 0; i < x_data.length; i++) {
+            if (x_data[i] >= lo && x_data[i] <= hi) {
+                zx.push(x_data[i]);
+                zy.push(y_data[i]);
+            }
+        }
+
+        const halfMax = m.peak_trans / 2.0;
+        const halfLine = zx.map(() => halfMax);
+
+        zoomChart = new Chart(ctx, {
+            type: 'line',
+            data: {
+                labels: zx,
+                datasets: [
+                    {
+                        label: 'Transmission',
+                        data: zy,
+                        borderColor: '#2980b9',
+                        borderWidth: 2.5,
+                        pointRadius: 0,
+                        tension: 0.1,
+                        fill: false
+                    },
+                    {
+                        label: 'Half maximum',
+                        data: halfLine,
+                        borderColor: '#e74c3c',
+                        borderWidth: 1.5,
+                        pointRadius: 0,
+                        borderDash: [6, 4],
+                        fill: false
+                    }
+                ]
+            },
+            options: {
+                responsive: true,
+                interaction: { intersect: false, mode: 'index' },
+                plugins: {
+                    legend: { display: true },
+                    tooltip: {
+                        callbacks: {
+                            title: function(context) {
+                                return `Frequency: ${formatFrequencyTick(context[0].label)} THz`;
+                            }
+                        }
+                    }
+                },
+                scales: {
+                    x: {
+                        title: { display: true, text: 'Frequency (THz)', font: {size: 14, weight: 'bold'} },
+                        ticks: {
+                            maxTicksLimit: 8,
+                            callback: function(value) {
+                                return formatFrequencyTick(this.getLabelForValue(value));
+                            }
+                        }
+                    },
+                    y: { title: { display: true, text: 'Transmission [a.u.]', font: {size: 14, weight: 'bold'} }, beginAtZero: true }
+                }
+            }
+        });
+    }
+
+    function drawComparisonChart(ideal, nonideal) {
+        const card = document.getElementById('compare-chart-card');
+        card.style.display = 'block';
+        const ctx = document.getElementById('compareChart').getContext('2d');
+        if (compareChart) { compareChart.destroy(); }
+
+        if (!ideal || !ideal.valid || !nonideal || !nonideal.valid) {
+            card.style.display = 'none';
+            return;
+        }
+
+        const labels = ['Peak Trans.', 'Q Factor', 'SMSR', 'Rejection'];
+        const idealVals = [ideal.peak_trans, ideal.q_factor, ideal.smsr_db, ideal.rejection_db];
+        const realVals = [nonideal.peak_trans, nonideal.q_factor, nonideal.smsr_db, nonideal.rejection_db];
+        const rawIdeal = idealVals.map(() => 100.0);
+
+        // Normalize each metric to its ideal value so mixed units (a.u., Q, dB)
+        // sit on one readable 0-100% scale; ideal is always 100%.
+        const retained = realVals.map((v, i) => {
+            const ref = idealVals[i];
+            if (ref === null || v === null || ref === 0) return null;
+            return (v / ref) * 100.0;
+        });
+
+        compareChart = new Chart(ctx, {
+            type: 'bar',
+            data: {
+                labels: labels,
+                datasets: [
+                    {
+                        label: 'Ideal (reference)',
+                        data: rawIdeal,
+                        backgroundColor: 'rgba(230, 126, 34, 0.75)',
+                        borderColor: '#e67e22',
+                        borderWidth: 1
+                    },
+                    {
+                        label: 'Non-Ideal (% of ideal)',
+                        data: retained,
+                        backgroundColor: 'rgba(41, 128, 185, 0.75)',
+                        borderColor: '#2980b9',
+                        borderWidth: 1
+                    }
+                ]
+            },
+            options: {
+                responsive: true,
+                plugins: {
+                    legend: { display: true },
+                    tooltip: {
+                        callbacks: {
+                            label: function(context) {
+                                const i = context.dataIndex;
+                                if (context.datasetIndex === 0) {
+                                    return `Ideal: ${fmt(idealVals[i], 2)}`;
+                                }
+                                return `Non-Ideal: ${fmt(realVals[i], 2)} (${fmt(context.parsed.y, 1)}% of ideal)`;
+                            }
+                        }
+                    }
+                },
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        title: { display: true, text: '% of ideal value', font: {size: 13, weight: 'bold'} }
+                    }
+                }
+            }
+        });
     }
 
     function showError(message) {

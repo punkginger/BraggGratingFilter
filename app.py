@@ -1,11 +1,111 @@
 from flask import Flask, render_template, request, jsonify
 import numpy as np
+from scipy.signal import find_peaks, peak_widths
 from engineer_bragg_grating import engineer_bragg_grating
 from bragg_grating_tmm import bragg_grating_tmm
 from optimize_duty_cycle import optimize_duty_cycle
 from optimize_n import optimize_n
 
 app = Flask(__name__)
+
+C_LIGHT = 299792458.0
+
+
+def compute_spectrum_metrics(f, T, f_br, sb_width):
+    """
+    Compute figure-of-merit metrics for a transmission spectrum T(f).
+
+    f: frequency array (Hz)
+    T: transmission power array (same length as f)
+    f_br: theoretical Bragg/target frequency (Hz), used for detuning + fence
+    sb_width: theoretical stopband width (Hz), used for the rejection fence
+
+    Returns a dict of metrics, or {"valid": False} if no usable defect peak
+    exists inside the provided frequency window.
+    """
+    f = np.asarray(f, dtype=float)
+    T = np.asarray(T, dtype=float)
+
+    prominence_min = max(0.001, 0.02 * float(np.max(T)))
+    peaks, _ = find_peaks(T, prominence=prominence_min)
+    if len(peaks) == 0:
+        return {"valid": False}
+
+    # Defect peak = peak closest to the theoretical Bragg frequency
+    peak_idx = int(peaks[np.argmin(np.abs(f[peaks] - f_br))])
+    peak_trans = float(T[peak_idx])
+    peak_freq = float(f[peak_idx])
+
+    if peak_idx == 0 or peak_idx == len(T) - 1 or peak_trans <= 0.0:
+        return {"valid": False}
+
+    # --- FWHM + Q via scipy peak_widths (half maximum) ---
+    widths, _, _, _ = peak_widths(T, [peak_idx], rel_height=0.5)
+    step_freq = f[1] - f[0]
+    fwhm_hz = float(widths[0] * step_freq)
+    q_factor = peak_freq / fwhm_hz if fwhm_hz > 0 else 0.0
+
+    # --- Insertion loss ---
+    insertion_loss_db = float(-10.0 * np.log10(peak_trans)) if peak_trans > 0 else None
+
+    # --- Stopband rejection using the theoretical "fence" around f_br ---
+    left_edge = f_br - sb_width / 2.0
+    right_edge = f_br + sb_width / 2.0
+    left_idx = int(np.argmin(np.abs(f - left_edge)))
+    right_idx = int(np.argmin(np.abs(f - right_edge)))
+    if right_idx < left_idx:
+        left_idx, right_idx = right_idx, left_idx
+    stopband_region = T[left_idx:right_idx + 1]
+    if len(stopband_region) > 0:
+        t_floor = float(np.min(stopband_region))
+    else:
+        t_floor = float(np.min(T))
+    rejection_ratio = peak_trans / t_floor if t_floor > 0 else 0.0
+    rejection_db = float(10.0 * np.log10(rejection_ratio)) if rejection_ratio > 0 else None
+
+    # --- Side-Mode Suppression Ratio (SMSR) ---
+    # Tallest competing mode outside a guard band around the defect peak.
+    # The guard excludes the passband lobe so stopband-edge / Fabry-Perot
+    # side modes are measured, not ripples on the main spike itself.
+    guard_hz = max(2.0 * fwhm_hz, 0.05 * sb_width if sb_width > 0 else step_freq * 20)
+    in_guard = np.abs(f - peak_freq) <= guard_hz
+
+    side_trans = None
+    side_freq = None
+    smsr_db = None
+    side_candidates = [p for p in peaks if p != peak_idx and not in_guard[p]]
+    if side_candidates:
+        side_idx = int(side_candidates[np.argmax(T[side_candidates])])
+        side_trans = float(T[side_idx])
+        side_freq = float(f[side_idx])
+    else:
+        outside = ~in_guard
+        if np.any(outside):
+            side_idx = int(np.argmax(np.where(outside, T, -1.0)))
+            side_trans = float(T[side_idx])
+            side_freq = float(f[side_idx])
+
+    if side_trans is not None and side_trans > 0:
+        smsr_db = float(10.0 * np.log10(peak_trans / side_trans))
+
+    # --- Center-frequency detuning ---
+    detuning_ghz = float(abs(peak_freq - f_br) / 1e9)
+
+    return {
+        "valid": True,
+        "peak_trans": peak_trans,
+        "peak_freq_thz": peak_freq / 1e12,
+        "fwhm_ghz": fwhm_hz / 1e9,
+        "q_factor": q_factor,
+        "insertion_loss_db": insertion_loss_db,
+        "t_floor": t_floor,
+        "rejection_ratio": rejection_ratio,
+        "rejection_db": rejection_db,
+        "smsr_db": smsr_db,
+        "side_freq_thz": (side_freq / 1e12) if side_freq is not None else None,
+        "side_trans": side_trans,
+        "detuning_ghz": detuning_ghz,
+    }
 
 @app.route('/')
 def simulate_page():
@@ -48,13 +148,68 @@ def run_simulation():
             f, Lm, Le, nmm, nee, am, ae, N, Lc, pishift, Lpi, delta,
             N_sub=N_sub, d_trans=d_trans, sigma_Le=sigma_Le, seed=seed
         )
-        
+        ref_ideal, trans_ideal, stopband_ideal = bragg_grating_tmm(
+            f, Lm, Le, nmm, nee, am, ae, N, Lc, pishift, Lpi, delta,
+            N_sub=0, d_trans=0.0, sigma_Le=0.0, seed=None
+        )
+
+        # Derive the theoretical Bragg frequency and stopband width from the
+        # entered geometry (README section "parameter optimization").
+        Lambda = Lm + Le
+        if Lambda > 0:
+            sigma = Lm / Lambda
+        else:
+            sigma = 0.0
+        n_eff = sigma * nmm + (1.0 - sigma) * nee
+        if n_eff > 0 and Lambda > 0:
+            f_br = C_LIGHT / (2.0 * n_eff * Lambda)
+            sb_width = f_br * (2.0 * abs(nmm - nee) / (np.pi * n_eff)) * np.sin(np.pi * sigma)
+        else:
+            f_br = float(np.mean(f))
+            sb_width = 0.0
+
+        metrics_nonideal = compute_spectrum_metrics(f, trans, f_br, sb_width)
+        metrics_ideal = compute_spectrum_metrics(f, trans_ideal, f_br, sb_width)
+
+        # Percentage degradation between ideal and non-ideal figures of merit.
+        def _pct_drop(ideal_val, real_val):
+            if ideal_val is None or real_val is None or ideal_val == 0:
+                return None
+            return float((ideal_val - real_val) / abs(ideal_val) * 100.0)
+
+        degradation = {}
+        if metrics_nonideal.get("valid") and metrics_ideal.get("valid"):
+            degradation = {
+                "peak_pct": _pct_drop(metrics_ideal["peak_trans"], metrics_nonideal["peak_trans"]),
+                "q_pct": _pct_drop(metrics_ideal["q_factor"], metrics_nonideal["q_factor"]),
+                "smsr_pct": _pct_drop(metrics_ideal["smsr_db"], metrics_nonideal["smsr_db"]),
+                "rejection_pct": _pct_drop(metrics_ideal["rejection_db"], metrics_nonideal["rejection_db"]),
+            }
+
+        # dB spectra (floored to avoid -inf where transmission underflows).
+        DB_FLOOR = -60.0
+        trans_db = np.where(trans > 0, 10.0 * np.log10(np.clip(trans, 1e-12, None)), DB_FLOOR)
+        trans_db = np.clip(trans_db, DB_FLOOR, None)
+        trans_ideal_db = np.where(trans_ideal > 0, 10.0 * np.log10(np.clip(trans_ideal, 1e-12, None)), DB_FLOOR)
+        trans_ideal_db = np.clip(trans_ideal_db, DB_FLOOR, None)
 
         return jsonify({
             "status": "success",
             "data": {
-                "frequencies": (f / 1e12).tolist(), 
-                "transmission": trans.tolist()
+                "frequencies": (f / 1e12).tolist(),
+                "transmission": trans.tolist(),
+                "transmission_ideal": trans_ideal.tolist(),
+                "transmission_db": trans_db.tolist(),
+                "transmission_ideal_db": trans_ideal_db.tolist(),
+                "metrics": {
+                    "nonideal": metrics_nonideal,
+                    "ideal": metrics_ideal,
+                    "degradation": degradation,
+                    "f_br_thz": f_br / 1e12,
+                    "sb_width_ghz": sb_width / 1e9,
+                    "fence_left_thz": (f_br - sb_width / 2.0) / 1e12,
+                    "fence_right_thz": (f_br + sb_width / 2.0) / 1e12,
+                }
             }
         }), 200
 
