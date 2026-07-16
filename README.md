@@ -189,3 +189,14 @@ We then isolate the transmission data strictly within these boundaries and locat
 $$\text{Rejection Ratio} = \frac{T_{peak}}{T_{floor}}$$
 
 Later, I'll assign each factor a weight, determine how much influence they ultimately have on the result.
+
+layouts:
+why single mode matters, difficulty, ray-waveguide but with defects, so bragg grating can be applied here, cite papers, aim is to build this
+
+theory bg of the filter in the book, metrics of pi-shift
+
+implementaiion, why how web dev, into diff subs
+
+discuss about thhe demetir of the whole work
+
+ethic
